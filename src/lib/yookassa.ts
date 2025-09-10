@@ -22,20 +22,23 @@ export interface CreatePaymentParams {
 }
 
 class YooKassa {
-  private shopId: string
-  private secretKey: string
+  private shopId?: string
+  private secretKey?: string
   private baseUrl = 'https://api.yookassa.ru/v3'
 
-  constructor() {
-    this.shopId = process.env.YOOKASSA_SHOP_ID!
-    this.secretKey = process.env.YOOKASSA_SECRET_KEY!
-    
+  private ensureCredentials() {
     if (!this.shopId || !this.secretKey) {
-      throw new Error('YooKassa credentials are not configured')
+      this.shopId = process.env.YOOKASSA_SHOP_ID
+      this.secretKey = process.env.YOOKASSA_SECRET_KEY
+      
+      if (!this.shopId || !this.secretKey) {
+        throw new Error('YooKassa credentials are not configured')
+      }
     }
   }
 
   private getAuthHeader(): string {
+    this.ensureCredentials()
     const auth = Buffer.from(`${this.shopId}:${this.secretKey}`).toString('base64')
     return `Basic ${auth}`
   }
@@ -50,6 +53,7 @@ class YooKassa {
     userId,
     returnUrl
   }: CreatePaymentParams): Promise<YooKassaPayment> {
+    this.ensureCredentials()
     try {
       const response = await fetch(`${this.baseUrl}/payments`, {
         method: 'POST',
@@ -89,6 +93,7 @@ class YooKassa {
   }
 
   async getPayment(paymentId: string): Promise<YooKassaPayment> {
+    this.ensureCredentials()
     try {
       const response = await fetch(`${this.baseUrl}/payments/${paymentId}`, {
         headers: {

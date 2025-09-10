@@ -7,7 +7,7 @@ import { Zap, Trophy, Target, User, LogIn, LogOut } from "lucide-react"
 import { useEffect, useState } from "react"
 
 import { cn } from "@/lib/utils"
-// import { ThemeToggle } from "@/components/theme-toggle"
+import { SimpleThemeToggle } from "@/components/simple-theme-toggle"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 
@@ -82,6 +82,7 @@ export function Navbar() {
 
           {/* Auth */}
           <div className="flex items-center space-x-4">
+            <SimpleThemeToggle />
             
             {!loading && (
               <>

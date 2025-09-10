@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-// import { ThemeProvider } from '@/components/providers/theme-provider'
-// import { Toaster } from '@/components/ui/sonner'
+import { SimpleThemeProvider } from '@/components/providers/simple-theme-provider'
+import { Toaster } from '@/components/ui/sonner'
 
 const inter = Inter({ subsets: ['latin', 'cyrillic'] })
 
@@ -34,16 +34,20 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="ru">
+    <html lang="ru" suppressHydrationWarning>
       <body className={inter.className}>
-        {/* Background gradient */}
-        <div className="fixed inset-0 -z-10">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-blue-900/20 to-pink-900/20" />
-          <div className="absolute inset-0 bg-gradient-to-tl from-indigo-900/20 via-purple-900/20 to-cyan-900/20" />
-          <div className="absolute inset-0 backdrop-blur-3xl" />
-        </div>
+        <SimpleThemeProvider defaultTheme="dark">
+          {/* Background gradient */}
+          <div className="fixed inset-0 -z-10">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-blue-900/20 to-pink-900/20 dark:from-purple-900/40 dark:via-blue-900/40 dark:to-pink-900/40" />
+            <div className="absolute inset-0 bg-gradient-to-tl from-indigo-900/20 via-purple-900/20 to-cyan-900/20 dark:from-indigo-900/40 dark:via-purple-900/40 dark:to-cyan-900/40" />
+            <div className="absolute inset-0 backdrop-blur-3xl" />
+            <div className="absolute inset-0 bg-slate-900/90 dark:bg-slate-900/95" />
+          </div>
 
-        {children}
+          {children}
+          <Toaster />
+        </SimpleThemeProvider>
       </body>
     </html>
   )

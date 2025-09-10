@@ -26,6 +26,7 @@ model users {
   subscriptions  subscriptions[]
   user_badges    user_badges[]
   user_scores    user_scores[]
+  payments       payments[]
 
   @@map("users")
 }
@@ -142,12 +143,32 @@ model profiles {
 }
 
 model user_scores {
-  id      String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id String @db.Uuid
-  score   Int    @default(0)
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id        String @db.Uuid
+  score          Int    @default(0)
+  current_streak Int    @default(0)
+  best_streak    Int    @default(0)
+  last_activity  DateTime? @db.Date
 
   // Relations
   user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
+  @@unique([user_id])
   @@map("user_scores")
+}
+
+model payments {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  payment_id  String   @unique
+  user_id     String   @db.Uuid
+  amount      Decimal
+  status      String   // 'pending', 'succeeded', 'canceled'
+  description String?
+  created_at  DateTime @default(now()) @db.Timestamptz
+  updated_at  DateTime @default(now()) @db.Timestamptz
+
+  // Relations
+  user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("payments")
 }
