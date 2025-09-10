@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { mockLeaderboard } from '@/lib/mock-data'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     // Try to use real Supabase first

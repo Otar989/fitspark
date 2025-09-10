@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,15 +21,15 @@ export default function ProfilePage() {
   const [user, setUser] = useState<any>(null)
   const supabase = createClient()
 
+  const checkUser = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    setUser(user)
+  }, [supabase.auth])
+
   useEffect(() => {
     checkUser()
     fetchProfile()
-  }, [])
-
-  const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    setUser(user)
-  }
+  }, [checkUser])
 
   const fetchProfile = async () => {
     try {

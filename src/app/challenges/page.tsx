@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,15 +19,15 @@ export default function ChallengesPage() {
   const [user, setUser] = useState<any>(null)
   const supabase = createClient()
 
+  const checkUser = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    setUser(user)
+  }, [supabase.auth])
+
   useEffect(() => {
     checkUser()
     fetchChallenges()
-  }, [])
-
-  const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    setUser(user)
-  }
+  }, [checkUser])
 
   const fetchChallenges = async () => {
     try {

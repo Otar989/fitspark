@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,17 +21,12 @@ export default function AdminPage() {
   const [user, setUser] = useState<any>(null)
   const supabase = createClient()
 
-  useEffect(() => {
-    checkUser()
-    fetchChallenges()
-  }, [])
-
-  const checkUser = async () => {
+  const checkUser = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     setUser(user)
-  }
+  }, [supabase.auth])
 
-  const fetchChallenges = async () => {
+  const fetchChallenges = useCallback(async () => {
     try {
       const response = await fetch('/api/challenges')
       const data = await response.json()
@@ -41,7 +36,12 @@ export default function AdminPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    checkUser()
+    fetchChallenges()
+  }, [checkUser, fetchChallenges])
 
   const createChallenge = async (e: React.FormEvent) => {
     e.preventDefault()

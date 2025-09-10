@@ -22,20 +22,32 @@ import { CompleteDialog } from '@/components/complete-dialog'
 interface Challenge {
   id: string
   title: string
+  description?: string
   category: string
-  description: string
   unit: string
   target: number
+  icon?: string
   premium: boolean
+  active?: boolean
+  duration_days?: number
 }
 
 interface UserStats {
   totalPoints: number
   totalChallenges: number
+  completedToday: number
   longestStreak: number
+  currentStreak: number
+  weeklyRank: number
+  badges: number
 }
 
 const categoryIcons = {
+  'активность': Activity,
+  'питание': Droplets,
+  'силовая': Dumbbell,
+  'развитие': Target,
+  'ментальное': Zap,
   steps: Activity,
   water: Droplets,
   strength: Dumbbell,
@@ -46,7 +58,15 @@ const categoryIcons = {
 
 export function DashboardContent() {
   const [challenges, setChallenges] = useState<Challenge[]>([])
-  const [stats, setStats] = useState<UserStats>({ totalPoints: 0, totalChallenges: 0, longestStreak: 0 })
+  const [stats, setStats] = useState<UserStats>({ 
+    totalPoints: 0, 
+    totalChallenges: 0, 
+    completedToday: 0,
+    longestStreak: 0,
+    currentStreak: 0,
+    weeklyRank: 0,
+    badges: 0
+  })
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null)
   const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -147,16 +167,16 @@ export function DashboardContent() {
         <GlassCard>
           <GlassCardContent className="p-4 text-center">
             <Target className="w-6 h-6 mx-auto mb-2 text-blue-400" />
-            <p className="text-sm text-white/80">Челленджей</p>
-            <p className="text-xl font-bold text-white">{stats.totalChallenges}</p>
+            <p className="text-sm text-white/80">Сегодня</p>
+            <p className="text-xl font-bold text-white">{stats.completedToday}</p>
           </GlassCardContent>
         </GlassCard>
 
         <GlassCard>
           <GlassCardContent className="p-4 text-center">
             <Flame className="w-6 h-6 mx-auto mb-2 text-orange-400" />
-            <p className="text-sm text-white/80">Лучший стрик</p>
-            <p className="text-xl font-bold text-white">{stats.longestStreak}</p>
+            <p className="text-sm text-white/80">Стрик</p>
+            <p className="text-xl font-bold text-white">{stats.currentStreak}</p>
           </GlassCardContent>
         </GlassCard>
 
@@ -164,7 +184,7 @@ export function DashboardContent() {
           <GlassCardContent className="p-4 text-center">
             <Trophy className="w-6 h-6 mx-auto mb-2 text-yellow-400" />
             <p className="text-sm text-white/80">Рейтинг</p>
-            <p className="text-xl font-bold text-white">-</p>
+            <p className="text-xl font-bold text-white">#{stats.weeklyRank}</p>
           </GlassCardContent>
         </GlassCard>
 
@@ -172,7 +192,7 @@ export function DashboardContent() {
           <GlassCardContent className="p-4 text-center">
             <Zap className="w-6 h-6 mx-auto mb-2 text-purple-400" />
             <p className="text-sm text-white/80">Бейджей</p>
-            <p className="text-xl font-bold text-white">0</p>
+            <p className="text-xl font-bold text-white">{stats.badges}</p>
           </GlassCardContent>
         </GlassCard>
       </div>
@@ -215,23 +235,35 @@ export function DashboardContent() {
                     <GlassCardHeader>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
-                          {IconComponent && (
-                            <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
+                          <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
+                            {challenge.icon ? (
+                              <span className="text-lg">{challenge.icon}</span>
+                            ) : IconComponent ? (
                               <IconComponent className="w-5 h-5 text-white" />
-                            </div>
-                          )}
+                            ) : (
+                              <Target className="w-5 h-5 text-white" />
+                            )}
+                          </div>
                           <div>
                             <h3 className="font-semibold text-white">{challenge.title}</h3>
-                            {challenge.premium && (
-                              <Badge variant="secondary" className="text-xs">
-                                Premium
-                              </Badge>
-                            )}
+                            <div className="flex items-center space-x-2 mt-1">
+                              {challenge.premium && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Premium
+                                </Badge>
+                              )}
+                              <span className="text-xs text-white/60">{challenge.category}</span>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </GlassCardHeader>
                     <GlassCardContent>
+                      {challenge.description && (
+                        <p className="text-white/60 text-xs mb-2">
+                          {challenge.description}
+                        </p>
+                      )}
                       <p className="text-white/80 text-sm mb-4">
                         Цель: {challenge.target} {challenge.unit}
                       </p>

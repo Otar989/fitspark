@@ -17,21 +17,57 @@ const userIds = [
   "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
 ];
 
-const challengeTitles = [
-  "Steps 10k / day",
-  "Drink 2L water",
-  "No sugar today",
-  "Read 20 pages",
-  "Cold shower 60s",
+const challengeData = [
+  {
+    title: "10,000 Шагов в День",
+    description: "Ходите 10,000 шагов каждый день для поддержания активности",
+    target: 10000,
+    unit: "шагов",
+    icon: "🚶",
+    category: "активность"
+  },
+  {
+    title: "2 Литра Воды",
+    description: "Пейте 2 литра чистой воды для здоровья",
+    target: 2000,
+    unit: "мл",
+    icon: "💧",
+    category: "питание"
+  },
+  {
+    title: "30 Отжиманий",
+    description: "Делайте 30 отжиманий для укрепления мышц",
+    target: 30,
+    unit: "раз",
+    icon: "💪",
+    category: "силовая"
+  },
+  {
+    title: "Читать 20 Страниц",
+    description: "Читайте 20 страниц книги для развития ума",
+    target: 20,
+    unit: "страниц",
+    icon: "📚",
+    category: "развитие"
+  },
+  {
+    title: "5 Минут Медитации",
+    description: "Медитируйте 5 минут для внутреннего покоя",
+    target: 5,
+    unit: "минут",
+    icon: "🧘",
+    category: "ментальное",
+    premium: true
+  },
 ];
 
 async function seedChallenges() {
   console.log("Seeding challenges...");
-  for (const title of challengeTitles) {
+  for (const challenge of challengeData) {
     await prisma.challenges.upsert({
-      where: { title }, // предполагается уникальность title; если нет — он всё равно вставит
+      where: { title: challenge.title },
       update: {},
-      create: { title },
+      create: challenge,
     } as any);
   }
 }
@@ -49,22 +85,83 @@ async function seedProfiles() {
   }
 }
 
+async function seedUsers() {
+  console.log("Seeding users...");
+  for (let i = 0; i < userIds.length; i++) {
+    const id = userIds[i];
+    const username = `user_${String(i + 1).padStart(2, "0")}`;
+    const email = `user${i + 1}@fitspark.com`;
+    try {
+      await prisma.users.upsert({
+        where: { id },
+        update: { username, email },
+        create: {
+          id,
+          auth_id: id, // Using same ID for auth_id in seed
+          username,
+          email,
+        },
+      } as any);
+    } catch (e) {
+      console.warn(`Skip user ${username} (might exist):`, e);
+    }
+  }
+}
+
 async function seedScores() {
   console.log("Seeding user_scores...");
-  // 20 записей с псевдослучайным score
-  const pairs: Array<{ user_id: string; score: number }> = [];
-  for (let i = 0; i < 20; i++) {
-    const user_id = userIds[i % userIds.length];
-    const score = 10 + (i * 7) % 120; // псевдо-распределение для наглядности
-    pairs.push({ user_id, score });
+  // 10 записей с псевдослучайным score
+  for (let i = 0; i < userIds.length; i++) {
+    const user_id = userIds[i];
+    const score = 10 + (i * 17) % 150; // псевдо-распределение для наглядности
+    try {
+      await prisma.user_scores.upsert({
+        where: { user_id: user_id },
+        update: { score: score },
+        create: { user_id: user_id, score: score },
+      } as any);
+    } catch (e) {
+      console.warn(`Skip score for ${user_id}:`, e);
+    }
   }
-  // upsert по первичному ключу (user_id)
-  for (const p of pairs) {
-    await prisma.user_scores.upsert({
-      where: { user_id: p.user_id },
-      update: { score: p.score },
-      create: { user_id: p.user_id, score: p.score },
-    } as any);
+}
+
+async function seedBadges() {
+  console.log("Seeding badges...");
+  const badgeData = [
+    {
+      name: "Первые шаги",
+      description: "Завершите свой первый челлендж",
+      icon: "🌟",
+      requirement_type: "total",
+      requirement_value: 1
+    },
+    {
+      name: "Активист",
+      description: "Завершите 10 челленджей",
+      icon: "🔥",
+      requirement_type: "total",
+      requirement_value: 10
+    },
+    {
+      name: "Серийник",
+      description: "Выполните челлендж 7 дней подряд",
+      icon: "⚡",
+      requirement_type: "streak",
+      requirement_value: 7
+    },
+  ];
+
+  for (const badge of badgeData) {
+    try {
+      await prisma.badges.upsert({
+        where: { name: badge.name },
+        update: {},
+        create: badge,
+      } as any);
+    } catch (e) {
+      console.warn(`Skip badge ${badge.name}:`, e);
+    }
   }
 }
 
@@ -91,8 +188,10 @@ async function main() {
 
   // По очереди, с защитой от несовпадений схемы:
   try { await seedChallenges(); } catch (e) { console.warn("Skip challenges (model missing?)", e); }
+  try { await seedUsers(); } catch (e) { console.warn("Skip users (model missing?)", e); }
   try { await seedProfiles(); } catch (e) { console.warn("Skip profiles (model missing?)", e); }
   try { await seedScores(); } catch (e) { console.warn("Skip user_scores (model missing?)", e); }
+  try { await seedBadges(); } catch (e) { console.warn("Skip badges (model missing?)", e); }
   try { await ensureLeaderboardView(); } catch (e) { console.warn("Skip view creation", e); }
 
   console.log("Seed finished.");
