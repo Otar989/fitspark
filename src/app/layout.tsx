@@ -35,7 +35,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ru" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={inter.className} suppressHydrationWarning>
         <SimpleThemeProvider defaultTheme="dark">
           {/* Background gradient */}
           <div className="fixed inset-0 -z-10">

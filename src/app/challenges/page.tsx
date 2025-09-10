@@ -12,6 +12,7 @@ import { Navbar } from "@/components/navbar"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 
+
 interface Challenge {
   id: string
   title: string

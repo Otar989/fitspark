@@ -11,6 +11,7 @@ import { Navbar } from "@/components/navbar"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 
+
 const premiumFeatures = [
   {
     icon: <Star className="w-6 h-6 text-yellow-400" />,

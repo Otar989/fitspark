@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card'
 import { Navbar } from '@/components/navbar'
 
+
 export default function HomePage() {
   return (
     <div className="min-h-screen">

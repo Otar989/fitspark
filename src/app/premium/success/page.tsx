@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Crown, CheckCircle, ArrowRight, Sparkles } from "lucide-react"
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from "@/components/ui/glass-card"
 import { Navbar } from "@/components/navbar"
 
-export default function PremiumSuccessPage() {
+function PremiumSuccessContent() {
   const [loading, setLoading] = useState(true)
   const [paymentStatus, setPaymentStatus] = useState<'success' | 'pending' | 'failed'>('pending')
   const searchParams = useSearchParams()
@@ -165,5 +165,23 @@ export default function PremiumSuccessPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function PremiumSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen">
+        <Navbar />
+        <div className="pt-32 pb-16 px-4 sm:px-6 lg:px-8">
+          <div className="container mx-auto text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4" />
+            <p className="text-white/80">Загрузка...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <PremiumSuccessContent />
+    </Suspense>
   )
 }

@@ -10,6 +10,7 @@ import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from "@/
 import { Badge } from "@/components/ui/badge"
 import { Navbar } from "@/components/navbar"
 
+
 interface LeaderboardEntry {
   username: string
   user_id: string

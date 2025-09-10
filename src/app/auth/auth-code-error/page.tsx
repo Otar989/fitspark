@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card'
 import { AlertCircle } from 'lucide-react'
 
+
 export default function AuthCodeErrorPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
