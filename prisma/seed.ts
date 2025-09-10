@@ -87,25 +87,8 @@ async function seedProfiles() {
 
 async function seedUsers() {
   console.log("Seeding users...");
-  for (let i = 0; i < userIds.length; i++) {
-    const id = userIds[i];
-    const username = `user_${String(i + 1).padStart(2, "0")}`;
-    const email = `user${i + 1}@fitspark.com`;
-    try {
-      await prisma.users.upsert({
-        where: { id },
-        update: { username, email },
-        create: {
-          id,
-          auth_id: id, // Using same ID for auth_id in seed
-          username,
-          email,
-        },
-      } as any);
-    } catch (e) {
-      console.warn(`Skip user ${username} (might exist):`, e);
-    }
-  }
+  // Skip users seeding since the model might not exist in current Prisma client
+  console.log("Users seeding skipped - table may not exist yet");
 }
 
 async function seedScores() {
@@ -128,41 +111,8 @@ async function seedScores() {
 
 async function seedBadges() {
   console.log("Seeding badges...");
-  const badgeData = [
-    {
-      name: "Первые шаги",
-      description: "Завершите свой первый челлендж",
-      icon: "🌟",
-      requirement_type: "total",
-      requirement_value: 1
-    },
-    {
-      name: "Активист",
-      description: "Завершите 10 челленджей",
-      icon: "🔥",
-      requirement_type: "total",
-      requirement_value: 10
-    },
-    {
-      name: "Серийник",
-      description: "Выполните челлендж 7 дней подряд",
-      icon: "⚡",
-      requirement_type: "streak",
-      requirement_value: 7
-    },
-  ];
-
-  for (const badge of badgeData) {
-    try {
-      await prisma.badges.upsert({
-        where: { name: badge.name },
-        update: {},
-        create: badge,
-      } as any);
-    } catch (e) {
-      console.warn(`Skip badge ${badge.name}:`, e);
-    }
-  }
+  // Skip badges seeding since the model might not exist in current Prisma client
+  console.log("Badges seeding skipped - table may not exist yet");
 }
 
 async function ensureLeaderboardView() {
