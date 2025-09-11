@@ -20,22 +20,24 @@ model users {
   updated_at  DateTime @default(now()) @db.Timestamptz
 
   // Relations
-  user_challenge user_challenge[]
-  completions    completions[]
-  subscriptions  subscriptions[]
-  user_badges    user_badges[]
-  user_scores    user_scores[]
-  payments       payments[]
-  proofs         proofs[]
+  user_challenges user_challenges[]
+  completions     completions[]
+  subscriptions   subscriptions[]
+  user_badges     user_badges[]
+  user_scores     user_scores[]
+  payments        payments[]
 
   @@map("users")
 }
 
 model categories {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  slug      String   @unique
-  name      String
-  created_at DateTime @default(now()) @db.Timestamptz
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String   @unique
+  name        String
+  icon        String   @default("🎯")
+  color       String   @default("from-purple-500 to-indigo-500")
+  description String?
+  created_at  DateTime @default(now()) @db.Timestamptz
 
   // Relations
   challenges challenges[]
@@ -47,38 +49,39 @@ model challenges {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   category_id   String   @db.Uuid
   title         String
-  short         String?  // Краткое описание
   description   String?
   difficulty    String   @default("easy") // easy, medium, hard
-  target        Int      @default(1)
-  unit          String   @default("times")
-  icon          String   @default("🎯")
-  image_url     String?
-  premium       Boolean  @default(false)
-  is_active     Boolean  @default(true)
+  target_value  Int      @default(1)
+  target_unit   String   @default("times")
   duration_days Int      @default(30)
-  points        Int      @default(10)
+  points_reward Int      @default(10)
+  is_premium    Boolean  @default(false)
+  proof_required String  @default("text") // text, photo, video, number
+  is_active     Boolean  @default(true)
   tasks         Json?    // JSON с задачами
   created_at    DateTime @default(now()) @db.Timestamptz
+  updated_at    DateTime @default(now()) @db.Timestamptz
 
   // Relations
-  category      categories   @relation(fields: [category_id], references: [id], onDelete: Cascade)
-  user_challenge user_challenge[]
-  completions    completions[]
-  badges         badges[]
-  proofs         proofs[]
+  category       categories       @relation(fields: [category_id], references: [id], onDelete: Cascade)
+  user_challenges user_challenges[]
+  completions     completions[]
+  badges          badges[]
+  proofs          proofs[]
 
   @@map("challenges")
 }
 
-model user_challenge {
-  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id      String    @db.Uuid
-  challenge_id String    @db.Uuid
-  progress     Json      @default("[]") // Массив объектов: { day: number, value: number|null, proof_url?: string, media_url?: string, created_at: timestamptz }
-  started_at   DateTime  @default(now()) @db.Timestamptz
-  completed_at DateTime? @db.Timestamptz
-  created_at   DateTime  @default(now()) @db.Timestamptz
+model user_challenges {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id          String    @db.Uuid
+  challenge_id     String    @db.Uuid
+  joined_at        DateTime  @default(now()) @db.Timestamptz
+  completed_at     DateTime? @db.Timestamptz
+  current_progress Decimal   @default(0) @db.Decimal(5,2) // Percentage: 0.00 - 100.00
+  status           String    @default("active") // not_joined, active, completed
+  created_at       DateTime  @default(now()) @db.Timestamptz
+  updated_at       DateTime  @default(now()) @db.Timestamptz
 
   // Relations
   user      users      @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -86,26 +89,23 @@ model user_challenge {
   proofs    proofs[]
 
   @@unique([user_id, challenge_id])
-  @@map("user_challenge")
+  @@map("user_challenges")
 }
 
 model proofs {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id      String   @db.Uuid
-  challenge_id String   @db.Uuid
-  user_challenge_id String @db.Uuid
-  day          Int
-  value        Decimal
-  proof_url    String?
-  media_url    String?
-  created_at   DateTime @default(now()) @db.Timestamptz
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_challenge_id String   @db.Uuid
+  proof_type        String   @default("text") // text, photo, video, number
+  proof_text        String?
+  proof_number      Decimal?
+  file_url          String?
+  submitted_at      DateTime @default(now()) @db.Timestamptz
+  is_verified       Boolean  @default(false)
+  created_at        DateTime @default(now()) @db.Timestamptz
 
   // Relations
-  user         users         @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  challenge    challenges    @relation(fields: [challenge_id], references: [id], onDelete: Cascade)
-  user_challenge user_challenge @relation(fields: [user_challenge_id], references: [id], onDelete: Cascade)
+  user_challenge user_challenges @relation(fields: [user_challenge_id], references: [id], onDelete: Cascade)
 
-  @@unique([user_id, challenge_id, day])
   @@map("proofs")
 }
 

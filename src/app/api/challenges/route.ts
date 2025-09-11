@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { mockChallenges } from '@/lib/mock-data'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,35 +8,103 @@ export async function GET(request: NextRequest) {
     const supabase = createClient()
     const { searchParams } = new URL(request.url)
     const category = searchParams.get('category')
+    const difficulty = searchParams.get('difficulty')
+    const q = searchParams.get('q')
+    const sort = searchParams.get('sort')
+
+    console.log('🔄 Challenges API: Fetching challenges with filters:', {
+      category,
+      difficulty, 
+      q,
+      sort
+    })
     
     let query = supabase
       .from('challenges')
       .select(`
-        *,
-        category:categories(
+        id,
+        category_id,
+        title,
+        description,
+        difficulty,
+        target_value,
+        target_unit,
+        duration_days,
+        points_reward,
+        is_premium,
+        proof_required,
+        is_active,
+        created_at,
+        updated_at,
+        category:categories!inner(
           id,
           slug,
-          name
+          name,
+          icon,
+          color,
+          description
         )
       `)
       .eq('is_active', true)
-      .order('created_at', { ascending: true })
 
+    // Apply filters
     if (category) {
       query = query.eq('category.slug', category)
+    }
+
+    if (difficulty) {
+      query = query.eq('difficulty', difficulty)
+    }
+
+    if (q) {
+      query = query.or(`title.ilike.%${q}%,description.ilike.%${q}%`)
+    }
+
+    // Apply sorting
+    switch (sort) {
+      case 'newest':
+        query = query.order('created_at', { ascending: false })
+        break
+      case 'points':
+        query = query.order('points_reward', { ascending: false })
+        break
+      case 'difficulty':
+        query = query.order('difficulty', { ascending: true })
+        break
+      default: // popular
+        query = query.order('created_at', { ascending: false })
     }
 
     const { data: challenges, error } = await query
 
     if (error) {
-      console.warn('Supabase error, using mock data:', error.message)
-      return NextResponse.json({ challenges: mockChallenges })
+      console.error('❌ Challenges API: Supabase error:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        filters: { category, difficulty, q, sort }
+      })
+      return NextResponse.json(
+        { 
+          error: 'Failed to fetch challenges',
+          details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        },
+        { status: 500 }
+      )
     }
 
-    return NextResponse.json({ challenges })
+    console.log('✅ Challenges API: Successfully fetched', challenges?.length || 0, 'challenges')
+    return NextResponse.json({ challenges: challenges || [] })
   } catch (error) {
-    console.warn('Supabase connection failed, using mock data:', error)
-    return NextResponse.json({ challenges: mockChallenges })
+    console.error('❌ Challenges API: Unexpected error:', error)
+    return NextResponse.json(
+      { 
+        error: 'Internal server error',
+        details: process.env.NODE_ENV === 'development' ? String(error) : undefined
+      },
+      { status: 500 }
+    )
   }
 }
 

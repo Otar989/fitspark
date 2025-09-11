@@ -3,12 +3,19 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Zap, Trophy, Target, User, LogIn, LogOut } from "lucide-react"
+import { Zap, Trophy, Target, User, LogIn, LogOut, Menu } from "lucide-react"
 import { useEffect, useState } from "react"
 
 import { cn } from "@/lib/utils"
 import { SimpleThemeToggle } from "@/components/simple-theme-toggle"
 import { Button } from "@/components/ui/button"
+import { 
+  Sheet, 
+  SheetContent, 
+  SheetHeader, 
+  SheetTitle, 
+  SheetTrigger 
+} from "@/components/ui/sheet"
 import { createClient } from "@/lib/supabase/client"
 
 const navigation = [
@@ -21,6 +28,7 @@ export function Navbar() {
   const pathname = usePathname()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
@@ -113,30 +121,92 @@ export function Navbar() {
             )}
             
             {/* Mobile menu button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden text-white hover:bg-white/20"
-            >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
-            </Button>
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="md:hidden text-white hover:bg-white/20"
+                >
+                  <Menu className="w-6 h-6" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="glass-card w-80">
+                <SheetHeader>
+                  <SheetTitle className="text-left flex items-center space-x-2">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-purple-600 to-pink-600">
+                      <Zap className="w-5 h-5 text-white" />
+                    </div>
+                    <span className="text-gradient">FitSpark</span>
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="flex flex-col space-y-4 mt-8">
+                  {navigation.map((item) => {
+                    const Icon = item.icon
+                    return (
+                      <Link 
+                        key={item.name} 
+                        href={item.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Button
+                          variant="ghost"
+                          className={cn(
+                            "w-full justify-start text-left flex items-center space-x-3 h-12",
+                            pathname === item.href && "bg-primary/20 text-primary"
+                          )}
+                        >
+                          <Icon className="w-5 h-5" />
+                          <span className="text-base">{item.name}</span>
+                        </Button>
+                      </Link>
+                    )
+                  })}
+                  
+                  <div className="h-px bg-border my-4" />
+                  
+                  <div className="flex flex-col space-y-2">
+                    <div className="flex items-center justify-between px-3">
+                      <span className="text-sm font-medium">Тема</span>
+                      <SimpleThemeToggle />
+                    </div>
+                    
+                    {!loading && (
+                      <>
+                        {user ? (
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              handleSignOut()
+                              setMobileMenuOpen(false)
+                            }}
+                            className="w-full justify-start flex items-center space-x-3 h-12"
+                          >
+                            <LogOut className="w-5 h-5" />
+                            <span>Выйти</span>
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            asChild
+                            className="w-full justify-start flex items-center space-x-3 h-12"
+                            onClick={() => setMobileMenuOpen(false)}
+                          >
+                            <Link href="/auth/login">
+                              <LogIn className="w-5 h-5" />
+                              <span>Войти</span>
+                            </Link>
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </div>
-      
-      {/* Mobile Navigation - будет добавлено позже */}
     </nav>
   )
 }

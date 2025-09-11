@@ -4,42 +4,25 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, Target, Star, Crown, Play, CheckCircle, TrendingUp } from 'lucide-react'
+import { Calendar, Target, Users, Crown, Play, CheckCircle, TrendingUp, Award } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { ProgressBar } from '@/components/challenges/progress-bar'
-import { CHALLENGE_UNITS, DIFFICULTY_LABELS, DIFFICULTY_COLORS, CHALLENGE_STATUS } from '@/constants/challenges'
-
-interface Challenge {
-  id: string
-  title: string
-  short?: string
-  description?: string
-  difficulty: 'easy' | 'medium' | 'hard'
-  target: number
-  unit: string
-  duration_days: number
-  points: number
-  icon: string
-  image_url?: string
-  premium: boolean
-  category?: {
-    id: string
-    slug: string
-    name: string
-  }
-}
-
-interface UserChallenge {
-  id: string
-  progress: any[]
-  started_at: string
-  completed_at?: string
-}
+import { 
+  CHALLENGE_UNITS, 
+  DIFFICULTY_LABELS, 
+  DIFFICULTY_COLORS, 
+  CHALLENGE_CATEGORIES,
+  CHALLENGE_MESSAGES,
+  type DatabaseChallenge,
+  type DatabaseUserChallenge,
+  type ChallengeCategory
+} from '@/constants/challenges'
+import { joinChallenge } from '@/lib/supabase/challenges'
 
 interface ChallengeCardProps {
-  challenge: Challenge
-  userChallenge?: UserChallenge
+  challenge: DatabaseChallenge
+  userChallenge?: DatabaseUserChallenge
   onJoin?: (challengeId: string) => void
   onContinue?: (challengeId: string) => void
   loading?: boolean
@@ -55,23 +38,25 @@ export function ChallengeCard({
   const [isJoining, setIsJoining] = useState(false)
 
   const getChallengeStatus = () => {
-    if (!userChallenge) return CHALLENGE_STATUS.NOT_JOINED
-    if (userChallenge.completed_at) return CHALLENGE_STATUS.COMPLETED
-    return CHALLENGE_STATUS.ACTIVE
+    if (!userChallenge) return 'not_joined'
+    return userChallenge.status
   }
 
   const getProgressPercentage = () => {
-    if (!userChallenge?.progress) return 0
-    const completedDays = userChallenge.progress.filter((p: any) => p.value !== null).length
-    return Math.round((completedDays / challenge.duration_days) * 100)
+    return userChallenge?.current_progress || 0
   }
 
   const getUnitInfo = () => {
-    return CHALLENGE_UNITS[challenge.unit as keyof typeof CHALLENGE_UNITS] || {
-      label: challenge.unit,
-      placeholder: `Например: ${challenge.target}`,
+    return CHALLENGE_UNITS[challenge.target_unit] || {
+      label: challenge.target_unit,
+      placeholder: `Например: ${challenge.target_value}`,
       icon: '🎯'
     }
+  }
+
+  const getCategoryInfo = () => {
+    if (!challenge.category) return null
+    return CHALLENGE_CATEGORIES[challenge.category.slug]
   }
 
   const handleJoin = async () => {
@@ -79,25 +64,12 @@ export function ChallengeCard({
     
     setIsJoining(true)
     try {
-      const response = await fetch('/api/join', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ challengeId: challenge.id }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to join challenge')
-      }
-
-      toast.success('Вы успешно присоединились к челленджу!')
+      await joinChallenge(challenge.id)
+      toast.success(CHALLENGE_MESSAGES.joinSuccess)
       onJoin?.(challenge.id)
     } catch (error) {
       console.error('Error joining challenge:', error)
-      toast.error(error instanceof Error ? error.message : 'Не удалось присоединиться к челленджу')
+      toast.error(error instanceof Error ? error.message : CHALLENGE_MESSAGES.joinError)
     } finally {
       setIsJoining(false)
     }
@@ -110,6 +82,7 @@ export function ChallengeCard({
   const status = getChallengeStatus()
   const progress = getProgressPercentage()
   const unitInfo = getUnitInfo()
+  const categoryInfo = getCategoryInfo()
 
   return (
     <motion.div
@@ -119,83 +92,87 @@ export function ChallengeCard({
       whileHover={{ y: -4 }}
       className="h-full"
     >
-      <Card className="h-full flex flex-col group hover:shadow-lg transition-all duration-300">
+      <Card className="h-full flex flex-col glass-card group hover:shadow-lg transition-all duration-300 border">
         <CardHeader className="pb-4">
           <div className="flex items-start justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <div className="text-3xl">{challenge.icon}</div>
-              <div className="flex-1">
-                <CardTitle className="text-lg font-semibold line-clamp-2">
+            <div className="flex items-center gap-3 flex-1">
+              <div className="text-2xl">{categoryInfo?.icon || '🎯'}</div>
+              <div className="flex-1 min-w-0">
+                <CardTitle className="text-lg font-semibold line-clamp-2 mb-1">
                   {challenge.title}
                 </CardTitle>
                 {challenge.category && (
-                  <Badge variant="outline" className="mt-1 text-xs">
+                  <Badge 
+                    variant="outline" 
+                    className={`text-xs border challenge-${challenge.category.slug}`}
+                  >
                     {challenge.category.name}
                   </Badge>
                 )}
               </div>
             </div>
             <div className="flex flex-col items-end gap-2">
-              {challenge.premium && (
+              {challenge.is_premium && (
                 <Crown className="w-5 h-5 text-yellow-500" />
               )}
-              {status === CHALLENGE_STATUS.COMPLETED && (
+              {status === 'completed' && (
                 <CheckCircle className="w-5 h-5 text-green-500" />
               )}
             </div>
           </div>
-          
-          {challenge.short && (
-            <p className="text-muted-foreground text-sm leading-relaxed line-clamp-2">
-              {challenge.short}
-            </p>
-          )}
         </CardHeader>
 
         <CardContent className="flex-1 flex flex-col">
-          {challenge.description && (
-            <p className="text-muted-foreground text-sm mb-4 line-clamp-3">
-              {challenge.description}
-            </p>
-          )}
+          <p className="text-muted-foreground text-sm mb-4 line-clamp-3">
+            {challenge.description}
+          </p>
 
           {/* Progress for active challenges */}
-          {status === CHALLENGE_STATUS.ACTIVE && (
+          {status === 'active' && (
             <div className="mb-4">
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-muted-foreground">Прогресс</span>
+                <span className="font-medium">{Math.round(progress)}%</span>
+              </div>
               <ProgressBar progress={progress} />
             </div>
           )}
 
           {/* Challenge info */}
-          <div className="flex items-center gap-4 mb-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <Calendar className="w-4 h-4" />
+          <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Calendar className="w-4 h-4 shrink-0" />
               <span>{challenge.duration_days} дней</span>
             </div>
-            <div className="flex items-center gap-1">
-              <Target className="w-4 h-4" />
-              <span>{challenge.points} баллов</span>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Award className="w-4 h-4 shrink-0" />
+              <span>{challenge.points_reward} баллов</span>
             </div>
-            <div className="flex items-center gap-1">
-              <span className="text-xs">{challenge.target} {unitInfo.label}</span>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Target className="w-4 h-4 shrink-0" />
+              <span>{challenge.target_value} {unitInfo.label}</span>
+            </div>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Users className="w-4 h-4 shrink-0" />
+              <span>{challenge.participant_count || 0}</span>
             </div>
           </div>
 
           {/* Action buttons */}
           <div className="flex items-center justify-between mt-auto">
             <Badge 
-              className={`${DIFFICULTY_COLORS[challenge.difficulty]} border`}
+              className={`${DIFFICULTY_COLORS[challenge.difficulty]} border px-2 py-1`}
             >
               {DIFFICULTY_LABELS[challenge.difficulty]}
             </Badge>
             
             <div className="flex gap-2">
-              {status === CHALLENGE_STATUS.NOT_JOINED && (
+              {status === 'not_joined' && (
                 <Button
                   onClick={handleJoin}
                   disabled={isJoining || loading}
                   size="sm"
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0"
+                  className="glass-button bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0"
                 >
                   {isJoining ? (
                     'Присоединение...'
@@ -208,19 +185,20 @@ export function ChallengeCard({
                 </Button>
               )}
               
-              {status === CHALLENGE_STATUS.ACTIVE && (
+              {status === 'active' && (
                 <Button
                   onClick={handleContinue}
                   size="sm"
                   variant="outline"
+                  className="glass-button"
                 >
                   <TrendingUp className="w-4 h-4 mr-2" />
                   Продолжить
                 </Button>
               )}
               
-              {status === CHALLENGE_STATUS.COMPLETED && (
-                <Badge className="bg-green-500/20 text-green-600 border-green-500/30">
+              {status === 'completed' && (
+                <Badge className="bg-green-500/20 text-green-400 border-green-500/30 px-3 py-1">
                   <CheckCircle className="w-4 h-4 mr-1" />
                   Завершен
                 </Badge>

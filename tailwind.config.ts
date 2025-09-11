@@ -50,6 +50,18 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        challenge: {
+          fitness: "hsl(var(--challenge-fitness))",
+          nutrition: "hsl(var(--challenge-nutrition))",
+          mindfulness: "hsl(var(--challenge-mindfulness))",
+          habits: "hsl(var(--challenge-habits))",
+          social: "hsl(var(--challenge-social))",
+          learning: "hsl(var(--challenge-learning))",
+          creativity: "hsl(var(--challenge-creativity))",
+          easy: "hsl(var(--challenge-easy))",
+          medium: "hsl(var(--challenge-medium))",
+          hard: "hsl(var(--challenge-hard))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

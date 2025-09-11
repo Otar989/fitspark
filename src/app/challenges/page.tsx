@@ -19,22 +19,22 @@ import {
   getUserChallenges, 
   joinChallenge, 
   submitProof,
-  Challenge,
-  Category,
-  UserChallenge,
-  ChallengeFilters as ChallengeFiltersType
+  type DatabaseChallenge,
+  type DatabaseCategory,
+  type DatabaseUserChallenge,
+  type ChallengeFilters as ChallengeFiltersType
 } from "@/lib/supabase/challenges"
 import { toast } from "sonner"
 
 export default function ChallengesPage() {
-  const [challenges, setChallenges] = useState<Challenge[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
-  const [userChallenges, setUserChallenges] = useState<UserChallenge[]>([])
+  const [challenges, setChallenges] = useState<DatabaseChallenge[]>([])
+  const [categories, setCategories] = useState<DatabaseCategory[]>([])
+  const [userChallenges, setUserChallenges] = useState<DatabaseUserChallenge[]>([])
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
   const [filters, setFilters] = useState<ChallengeFiltersType>({})
-  const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null)
-  const [selectedUserChallenge, setSelectedUserChallenge] = useState<UserChallenge | null>(null)
+  const [selectedChallenge, setSelectedChallenge] = useState<DatabaseChallenge | null>(null)
+  const [selectedUserChallenge, setSelectedUserChallenge] = useState<DatabaseUserChallenge | null>(null)
   const [proofDialogOpen, setProofDialogOpen] = useState(false)
   const supabase = createClient()
 
@@ -88,7 +88,7 @@ export default function ChallengesPage() {
     }
 
     try {
-      await joinChallenge(user.id, challengeId)
+      await joinChallenge(challengeId)
       toast.success('Вы успешно присоединились к челленджу!')
       fetchData() // Refresh data
     } catch (error) {
@@ -114,13 +114,16 @@ export default function ChallengesPage() {
     proofUrl?: string
     file?: File
   }) => {
-    if (!user || !selectedChallenge) return
+    if (!user || !selectedChallenge || !selectedUserChallenge) return
 
     try {
       await submitProof({
         userId: user.id,
-        challengeId: selectedChallenge.id,
-        ...data
+        userChallengeId: selectedUserChallenge.id,
+        proofType: 'number', // Default to number for now
+        proofNumber: data.value,
+        proofText: data.proofUrl,
+        file: data.file
       })
       
       toast.success('Челлендж выполнен!')

@@ -24,6 +24,25 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 262 80% 50%;
     --radius: 0.75rem;
+
+    /* Challenge specific colors - Light theme */
+    --challenge-fitness: 16 84% 55%;
+    --challenge-nutrition: 142 76% 36%;
+    --challenge-mindfulness: 262 80% 50%;
+    --challenge-habits: 202 100% 50%;
+    --challenge-social: 330 81% 60%;
+    --challenge-learning: 45 93% 47%;
+    --challenge-creativity: 271 81% 56%;
+    
+    /* Status colors - Light theme */
+    --challenge-easy: 142 76% 36%;
+    --challenge-medium: 45 93% 47%;
+    --challenge-hard: 0 84% 60%;
+    
+    /* Glass effects - Light theme */
+    --glass-bg: rgba(255, 255, 255, 0.8);
+    --glass-border: rgba(255, 255, 255, 0.2);
+    --glass-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
   }
 
   .dark {
@@ -46,6 +65,25 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 262 80% 50%;
+
+    /* Challenge specific colors - Dark theme */
+    --challenge-fitness: 16 84% 65%;
+    --challenge-nutrition: 142 76% 46%;
+    --challenge-mindfulness: 262 80% 60%;
+    --challenge-habits: 202 100% 60%;
+    --challenge-social: 330 81% 70%;
+    --challenge-learning: 45 93% 57%;
+    --challenge-creativity: 271 81% 66%;
+    
+    /* Status colors - Dark theme */
+    --challenge-easy: 142 76% 46%;
+    --challenge-medium: 45 93% 57%;
+    --challenge-hard: 0 84% 70%;
+    
+    /* Glass effects - Dark theme */
+    --glass-bg: rgba(15, 23, 42, 0.8);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   }
 }
 
@@ -61,29 +99,114 @@
 }
 
 @layer utilities {
+  /* Glass effects */
   .glass {
-    @apply backdrop-blur-xl border border-white/20 dark:border-white/10;
-    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(16px);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
   }
   
-  .glass-dark {
-    @apply backdrop-blur-xl border border-white/10;
-    background: rgba(0, 0, 0, 0.2);
+  .glass-card {
+    @apply glass rounded-xl p-4 transition-all duration-200 hover:shadow-lg;
   }
   
-  .glass-primary {
-    @apply backdrop-blur-xl border border-purple-300/30;
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(168, 85, 247, 0.1));
+  .glass-button {
+    @apply glass rounded-lg px-4 py-2 font-medium transition-all duration-200 hover:scale-105 active:scale-95;
   }
   
+  /* Challenge category colors */
+  .challenge-fitness {
+    background: linear-gradient(135deg, 
+      hsla(var(--challenge-fitness), 0.1), 
+      hsla(var(--challenge-fitness), 0.2)
+    );
+    border-color: hsla(var(--challenge-fitness), 0.3);
+  }
+  
+  .challenge-nutrition {
+    background: linear-gradient(135deg, 
+      hsla(var(--challenge-nutrition), 0.1), 
+      hsla(var(--challenge-nutrition), 0.2)
+    );
+    border-color: hsla(var(--challenge-nutrition), 0.3);
+  }
+  
+  .challenge-mindfulness {
+    background: linear-gradient(135deg, 
+      hsla(var(--challenge-mindfulness), 0.1), 
+      hsla(var(--challenge-mindfulness), 0.2)
+    );
+    border-color: hsla(var(--challenge-mindfulness), 0.3);
+  }
+  
+  .challenge-habits {
+    background: linear-gradient(135deg, 
+      hsla(var(--challenge-habits), 0.1), 
+      hsla(var(--challenge-habits), 0.2)
+    );
+    border-color: hsla(var(--challenge-habits), 0.3);
+  }
+  
+  .challenge-social {
+    background: linear-gradient(135deg, 
+      hsla(var(--challenge-social), 0.1), 
+      hsla(var(--challenge-social), 0.2)
+    );
+    border-color: hsla(var(--challenge-social), 0.3);
+  }
+  
+  .challenge-learning {
+    background: linear-gradient(135deg, 
+      hsla(var(--challenge-learning), 0.1), 
+      hsla(var(--challenge-learning), 0.2)
+    );
+    border-color: hsla(var(--challenge-learning), 0.3);
+  }
+  
+  .challenge-creativity {
+    background: linear-gradient(135deg, 
+      hsla(var(--challenge-creativity), 0.1), 
+      hsla(var(--challenge-creativity), 0.2)
+    );
+    border-color: hsla(var(--challenge-creativity), 0.3);
+  }
+  
+  /* Difficulty badges */
+  .difficulty-easy {
+    @apply bg-green-500/20 text-green-400 border border-green-500/30;
+  }
+  
+  .difficulty-medium {
+    @apply bg-yellow-500/20 text-yellow-400 border border-yellow-500/30;
+  }
+  
+  .difficulty-hard {
+    @apply bg-red-500/20 text-red-400 border border-red-500/30;
+  }
+  
+  /* Text gradients */
   .text-gradient {
-    @apply bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent;
   }
   
-  .container-glass {
-    @apply glass rounded-2xl shadow-xl p-6;
+  .text-gradient-fitness {
+    background: linear-gradient(135deg, 
+      hsl(var(--challenge-fitness)), 
+      hsl(var(--challenge-fitness))
+    );
+    @apply bg-clip-text text-transparent;
   }
   
+  .text-gradient-nutrition {
+    background: linear-gradient(135deg, 
+      hsl(var(--challenge-nutrition)), 
+      hsl(var(--challenge-nutrition))
+    );
+    @apply bg-clip-text text-transparent;
+  }
+  
+  /* Animations */
   .animate-glass-shine::before {
     content: '';
     position: absolute;
@@ -93,5 +216,18 @@
     height: 100%;
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
     animation: glass-shine 2s infinite;
+  }
+  
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  /* Progress bars */
+  .progress-bar {
+    @apply relative h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden;
+  }
+  
+  .progress-fill {
+    @apply h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500 ease-out;
   }
 }
