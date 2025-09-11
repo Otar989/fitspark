@@ -7,34 +7,14 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Calendar, Target, Star, Crown, CheckCircle, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
+import { UserChallenge as UserChallengeType } from '@/lib/supabase/challenges'
 
-interface UserChallenge {
-  id: string
-  progress: number
-  started_at: string
-  completed_at?: string
-  challenge: {
-    id: string
-    title: string
-    short?: string
-    description?: string
-    difficulty: 'easy' | 'medium' | 'hard'
-    duration_days: number
-    points: number
-    icon: string
-    image_url?: string
-    premium: boolean
-    category?: {
-      id: string
-      slug: string
-      name: string
-    }
-  }
-}
+type UserChallenge = UserChallengeType
 
 interface UserChallengeCardProps {
   userChallenge: UserChallenge
   onProgressUpdate?: (challengeId: string, progress: number) => void
+  onContinue?: (challengeId: string) => void
 }
 
 const difficultyColors = {
@@ -49,11 +29,17 @@ const difficultyLabels = {
   hard: 'Сложно'
 }
 
-export function UserChallengeCard({ userChallenge, onProgressUpdate }: UserChallengeCardProps) {
+export function UserChallengeCard({ userChallenge, onProgressUpdate, onContinue }: UserChallengeCardProps) {
   const [isUpdating, setIsUpdating] = useState(false)
   const { challenge, progress, started_at, completed_at } = userChallenge
 
-  const isCompleted = progress === 100 || completed_at
+  if (!challenge) {
+    return null
+  }
+
+  const isCompleted = completed_at
+  const completedDays = Array.isArray(progress) ? progress.filter((p: any) => p.value !== null).length : 0
+  const progressPercentage = Math.round((completedDays / challenge.duration_days) * 100)
   const daysSinceStart = Math.floor((Date.now() - new Date(started_at).getTime()) / (1000 * 60 * 60 * 24))
   const daysRemaining = Math.max(0, challenge.duration_days - daysSinceStart)
 
@@ -88,10 +74,10 @@ export function UserChallengeCard({ userChallenge, onProgressUpdate }: UserChall
   }
 
   const getProgressColor = () => {
-    if (progress >= 100) return 'bg-green-500'
-    if (progress >= 75) return 'bg-blue-500'
-    if (progress >= 50) return 'bg-yellow-500'
-    if (progress >= 25) return 'bg-orange-500'
+    if (progressPercentage >= 100) return 'bg-green-500'
+    if (progressPercentage >= 75) return 'bg-blue-500'
+    if (progressPercentage >= 50) return 'bg-yellow-500'
+    if (progressPercentage >= 25) return 'bg-orange-500'
     return 'bg-red-500'
   }
 
@@ -134,13 +120,13 @@ export function UserChallengeCard({ userChallenge, onProgressUpdate }: UserChall
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-white/80">Прогресс</span>
-            <span className="text-sm font-semibold text-white">{progress}%</span>
+            <span className="text-sm font-semibold text-white">{progressPercentage}%</span>
           </div>
           <Progress 
-            value={progress} 
+            value={progressPercentage} 
             className="h-2 bg-white/10"
           />
-          <div className={`h-2 rounded-full ${getProgressColor()}`} style={{ width: `${progress}%` }} />
+          <div className={`h-2 rounded-full ${getProgressColor()}`} style={{ width: `${progressPercentage}%` }} />
         </div>
 
         {/* Stats */}
@@ -165,27 +151,15 @@ export function UserChallengeCard({ userChallenge, onProgressUpdate }: UserChall
           
           <div className="flex gap-2">
             {!isCompleted && (
-              <>
-                <Button
-                  onClick={() => updateProgress(Math.min(100, progress + 25))}
-                  disabled={isUpdating || progress >= 100}
-                  size="sm"
-                  variant="outline"
-                  className="border-white/20 text-white hover:bg-white/10"
-                >
-                  <TrendingUp className="w-4 h-4 mr-1" />
-                  +25%
-                </Button>
-                <Button
-                  onClick={() => updateProgress(100)}
-                  disabled={isUpdating || progress >= 100}
-                  size="sm"
-                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0"
-                >
-                  <CheckCircle className="w-4 h-4 mr-1" />
-                  Завершить
-                </Button>
-              </>
+              <Button
+                onClick={() => onContinue?.(challenge.id)}
+                size="sm"
+                variant="outline"
+                className="border-white/20 text-white hover:bg-white/10"
+              >
+                <TrendingUp className="w-4 h-4 mr-1" />
+                Продолжить
+              </Button>
             )}
             {isCompleted && (
               <Badge className="bg-green-500/20 text-green-400 border-green-500/30">

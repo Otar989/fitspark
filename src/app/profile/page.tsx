@@ -8,6 +8,13 @@ import { Input } from '@/components/ui/input'
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card'
 import { Label } from '@/components/ui/label'
 import { UserChallengeCard } from '@/components/user-challenge-card'
+import { SubmitProofDialog } from '@/components/challenges/submit-proof-dialog'
+import { 
+  getUserChallenges, 
+  submitProof,
+  UserChallenge as UserChallengeType,
+  Challenge
+} from '@/lib/supabase/challenges'
 import { Navbar } from '@/components/navbar'
 import { ArrowLeft, User, Target, Trophy, Settings } from 'lucide-react'
 import { toast } from 'sonner'
@@ -18,29 +25,8 @@ interface Profile {
   updated_at: string
 }
 
-interface UserChallenge {
-  id: string
-  progress: number
-  started_at: string
-  completed_at?: string
-  challenge: {
-    id: string
-    title: string
-    short?: string
-    description?: string
-    difficulty: 'easy' | 'medium' | 'hard'
-    duration_days: number
-    points: number
-    icon: string
-    image_url?: string
-    premium: boolean
-    category?: {
-      id: string
-      slug: string
-      name: string
-    }
-  }
-}
+// Use the type from utils
+type UserChallenge = UserChallengeType
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -49,6 +35,9 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [user, setUser] = useState<any>(null)
+  const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null)
+  const [selectedUserChallenge, setSelectedUserChallenge] = useState<UserChallenge | null>(null)
+  const [proofDialogOpen, setProofDialogOpen] = useState(false)
   const supabase = createClient()
 
   const checkUser = useCallback(async () => {
@@ -56,12 +45,7 @@ export default function ProfilePage() {
     setUser(user)
   }, [supabase.auth])
 
-  useEffect(() => {
-    checkUser()
-    fetchData()
-  }, [checkUser])
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       // Fetch profile
       const profileResponse = await fetch('/api/profile')
@@ -69,18 +53,23 @@ export default function ProfilePage() {
       setProfile(profileData.profile)
       setUsername(profileData.profile?.username || '')
 
-      // Fetch user challenges
-      const challengesResponse = await fetch('/api/user-challenges')
-      if (challengesResponse.ok) {
-        const challengesData = await challengesResponse.json()
-        setUserChallenges(challengesData.userChallenges || [])
+      // Fetch user challenges using new utils
+      if (user) {
+        const challengesData = await getUserChallenges(user.id)
+        setUserChallenges(challengesData)
       }
     } catch (error) {
       console.error('Error fetching data:', error)
+      toast.error('Ошибка при загрузке данных')
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    checkUser()
+    fetchData()
+  }, [checkUser, fetchData])
 
   const saveProfile = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -108,13 +97,41 @@ export default function ProfilePage() {
   }
 
   const handleProgressUpdate = (challengeId: string, progress: number) => {
-    setUserChallenges(prev => 
-      prev.map(uc => 
-        uc.challenge.id === challengeId 
-          ? { ...uc, progress, ...(progress === 100 && { completed_at: new Date().toISOString() }) }
-          : uc
-      )
-    )
+    // Progress is now handled by the database and refreshed via fetchData
+    fetchData()
+  }
+
+  const handleContinueChallenge = (challengeId: string) => {
+    const userChallenge = userChallenges.find(uc => uc.challenge?.id === challengeId)
+    
+    if (userChallenge && userChallenge.challenge) {
+      setSelectedChallenge(userChallenge.challenge)
+      setSelectedUserChallenge(userChallenge)
+      setProofDialogOpen(true)
+    }
+  }
+
+  const handleSubmitProof = async (data: {
+    day: number
+    value: number
+    proofUrl?: string
+    file?: File
+  }) => {
+    if (!user || !selectedChallenge) return
+
+    try {
+      await submitProof({
+        userId: user.id,
+        challengeId: selectedChallenge.id,
+        ...data
+      })
+      
+      toast.success('Челлендж выполнен!')
+      fetchData() // Refresh data
+    } catch (error) {
+      console.error('Error submitting proof:', error)
+      throw error // Re-throw to let dialog handle the error
+    }
   }
 
   const signOut = async () => {
@@ -161,7 +178,7 @@ export default function ProfilePage() {
 
   const activeChallenges = userChallenges.filter(uc => !uc.completed_at)
   const completedChallenges = userChallenges.filter(uc => uc.completed_at)
-  const totalPoints = userChallenges.reduce((sum, uc) => sum + (uc.completed_at ? uc.challenge.points : 0), 0)
+  const totalPoints = userChallenges.reduce((sum, uc) => sum + (uc.completed_at && uc.challenge ? uc.challenge.points : 0), 0)
 
   return (
     <div className="min-h-screen">
@@ -275,6 +292,7 @@ export default function ProfilePage() {
                       key={userChallenge.id}
                       userChallenge={userChallenge}
                       onProgressUpdate={handleProgressUpdate}
+                      onContinue={handleContinueChallenge}
                     />
                   ))}
                 </div>
@@ -311,6 +329,7 @@ export default function ProfilePage() {
                       key={userChallenge.id}
                       userChallenge={userChallenge}
                       onProgressUpdate={handleProgressUpdate}
+                      onContinue={handleContinueChallenge}
                     />
                   ))}
                 </div>
@@ -319,6 +338,15 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Submit Proof Dialog */}
+      <SubmitProofDialog
+        open={proofDialogOpen}
+        onOpenChange={setProofDialogOpen}
+        challenge={selectedChallenge}
+        userChallenge={selectedUserChallenge}
+        onSubmit={handleSubmitProof}
+      />
     </div>
   )
 }

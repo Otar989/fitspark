@@ -1,47 +1,30 @@
 "use client"
 
 import * as React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
-import { Crown, Target, ArrowLeft, Filter } from "lucide-react"
+import { Crown, Target, ArrowLeft, Loader2 } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
 
 import { Button } from "@/components/ui/button"
 import { Navbar } from "@/components/navbar"
 import { ChallengeCard } from "@/components/challenge-card"
+import { ChallengeFilters } from "@/components/challenges/challenge-filters"
+import { ChallengesEmptyState } from "@/components/challenges/empty-state"
+import { SubmitProofDialog } from "@/components/challenges/submit-proof-dialog"
 import { createClient } from "@/lib/supabase/client"
+import { 
+  getCategories, 
+  getChallenges, 
+  getUserChallenges, 
+  joinChallenge, 
+  submitProof,
+  Challenge,
+  Category,
+  UserChallenge,
+  ChallengeFilters as ChallengeFiltersType
+} from "@/lib/supabase/challenges"
 import { toast } from "sonner"
-
-interface Challenge {
-  id: string
-  title: string
-  short?: string
-  description?: string
-  difficulty: 'easy' | 'medium' | 'hard'
-  duration_days: number
-  points: number
-  icon: string
-  image_url?: string
-  premium: boolean
-  category?: {
-    id: string
-    slug: string
-    name: string
-  }
-}
-
-interface Category {
-  id: string
-  slug: string
-  name: string
-}
-
-interface UserChallenge {
-  id: string
-  challenge_id: string
-  progress: number
-  started_at: string
-  completed_at?: string
-}
 
 export default function ChallengesPage() {
   const [challenges, setChallenges] = useState<Challenge[]>([])
@@ -49,35 +32,36 @@ export default function ChallengesPage() {
   const [userChallenges, setUserChallenges] = useState<UserChallenge[]>([])
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
-  const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [filters, setFilters] = useState<ChallengeFiltersType>({})
+  const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null)
+  const [selectedUserChallenge, setSelectedUserChallenge] = useState<UserChallenge | null>(null)
+  const [proofDialogOpen, setProofDialogOpen] = useState(false)
   const supabase = createClient()
 
-  const fetchData = React.useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
-      // Fetch challenges
-      const challengesResponse = await fetch('/api/challenges')
-      const challengesData = await challengesResponse.json()
-      setChallenges(challengesData.challenges || [])
+      setLoading(true)
       
       // Fetch categories
-      const categoriesResponse = await fetch('/api/categories')
-      const categoriesData = await categoriesResponse.json()
-      setCategories(categoriesData.categories || [])
+      const categoriesData = await getCategories()
+      setCategories(categoriesData)
+      
+      // Fetch challenges with filters
+      const challengesData = await getChallenges(filters)
+      setChallenges(challengesData)
       
       // Fetch user's joined challenges if user is logged in
       if (user) {
-        const userResponse = await fetch('/api/user-challenges')
-        if (userResponse.ok) {
-          const userData = await userResponse.json()
-          setUserChallenges(userData.userChallenges || [])
-        }
+        const userChallengesData = await getUserChallenges(user.id)
+        setUserChallenges(userChallengesData)
       }
     } catch (error) {
       console.error('Error fetching data:', error)
+      toast.error('Ошибка при загрузке данных')
     } finally {
       setLoading(false)
     }
-  }, [user])
+  }, [user, filters])
 
   useEffect(() => {
     const getUser = async () => {
@@ -93,16 +77,66 @@ export default function ChallengesPage() {
     }
   }, [user, fetchData])
 
-  const handleJoinChallenge = (challengeId: string) => {
-    fetchData() // Refresh data after joining
+  const handleFiltersChange = (newFilters: ChallengeFiltersType) => {
+    setFilters(newFilters)
   }
 
-  const filteredChallenges = selectedCategory === 'all' 
-    ? challenges 
-    : challenges.filter(c => c.category?.slug === selectedCategory)
+  const handleJoinChallenge = async (challengeId: string) => {
+    if (!user) {
+      toast.error('Войдите в аккаунт, чтобы присоединиться к челленджу')
+      return
+    }
 
-  const isJoined = (challengeId: string) => {
-    return userChallenges.some(uc => uc.challenge_id === challengeId)
+    try {
+      await joinChallenge(user.id, challengeId)
+      toast.success('Вы успешно присоединились к челленджу!')
+      fetchData() // Refresh data
+    } catch (error) {
+      console.error('Error joining challenge:', error)
+      toast.error('Ошибка при присоединении к челленджу')
+    }
+  }
+
+  const handleContinueChallenge = (challengeId: string) => {
+    const challenge = challenges.find(c => c.id === challengeId)
+    const userChallenge = userChallenges.find(uc => uc.challenge_id === challengeId)
+    
+    if (challenge && userChallenge) {
+      setSelectedChallenge(challenge)
+      setSelectedUserChallenge(userChallenge)
+      setProofDialogOpen(true)
+    }
+  }
+
+  const handleSubmitProof = async (data: {
+    day: number
+    value: number
+    proofUrl?: string
+    file?: File
+  }) => {
+    if (!user || !selectedChallenge) return
+
+    try {
+      await submitProof({
+        userId: user.id,
+        challengeId: selectedChallenge.id,
+        ...data
+      })
+      
+      toast.success('Челлендж выполнен!')
+      fetchData() // Refresh data
+    } catch (error) {
+      console.error('Error submitting proof:', error)
+      throw error // Re-throw to let dialog handle the error
+    }
+  }
+
+  const resetFilters = () => {
+    setFilters({})
+  }
+
+  const getUserChallenge = (challengeId: string) => {
+    return userChallenges.find(uc => uc.challenge_id === challengeId)
   }
 
   if (loading) {
@@ -111,8 +145,8 @@ export default function ChallengesPage() {
         <Navbar />
         <div className="pt-32 pb-16 px-4 sm:px-6 lg:px-8">
           <div className="container mx-auto text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4" />
-            <p className="text-white/80">Загружаем челленджи...</p>
+            <Loader2 className="w-12 h-12 mx-auto mb-4 animate-spin text-primary" />
+            <p className="text-muted-foreground">Загружаем челленджи...</p>
           </div>
         </div>
       </div>
@@ -120,96 +154,108 @@ export default function ChallengesPage() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background">
       <Navbar />
       
       {/* Header */}
       <section className="pt-32 pb-8 px-4 sm:px-6 lg:px-8">
         <div className="container mx-auto">
-          <Link href="/" className="inline-flex items-center text-white/80 hover:text-white mb-8">
+          <Link href="/" className="inline-flex items-center text-muted-foreground hover:text-foreground mb-8">
             <ArrowLeft className="w-4 h-4 mr-2" />
             На главную
           </Link>
           
-          <div className="text-center mb-12">
+          <motion.div 
+            className="text-center mb-12"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
             <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              <span className="text-gradient">Челленджи</span>
+              <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                Челленджи
+              </span>
             </h1>
-            <p className="text-xl text-white/80 max-w-2xl mx-auto">
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               Выберите челленджи и превратите здоровые привычки в увлекательную игру
             </p>
-          </div>
+          </motion.div>
 
-          {/* Category Filter */}
-          <div className="flex flex-wrap justify-center gap-3 mb-12">
-            <Button
-              variant={selectedCategory === 'all' ? "default" : "ghost"}
-              onClick={() => setSelectedCategory('all')}
-              className={`${
-                selectedCategory === 'all' 
-                  ? "bg-white/20 text-white" 
-                  : "text-white/80 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              <Filter className="w-4 h-4 mr-2" />
-              Все
-            </Button>
-            {categories.map((category) => (
-              <Button
-                key={category.slug}
-                variant={selectedCategory === category.slug ? "default" : "ghost"}
-                onClick={() => setSelectedCategory(category.slug)}
-                className={`${
-                  selectedCategory === category.slug 
-                    ? "bg-white/20 text-white" 
-                    : "text-white/80 hover:bg-white/10 hover:text-white"
-                }`}
-              >
-                {category.name}
-              </Button>
-            ))}
-          </div>
+          {/* Filters */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            <ChallengeFilters
+              categories={categories}
+              onFiltersChange={handleFiltersChange}
+              className="max-w-4xl mx-auto"
+            />
+          </motion.div>
         </div>
       </section>
 
       {/* Challenges Grid */}
       <section className="pb-16 px-4 sm:px-6 lg:px-8">
         <div className="container mx-auto">
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredChallenges.map((challenge) => (
-              <ChallengeCard
-                key={challenge.id}
-                challenge={challenge}
-                onJoin={handleJoinChallenge}
-                isJoined={isJoined(challenge.id)}
-                loading={loading}
-              />
-            ))}
-          </div>
-
-          {filteredChallenges.length === 0 && (
-            <div className="text-center py-12">
-              <Target className="w-16 h-16 mx-auto mb-4 text-white/40" />
-              <h3 className="text-xl font-semibold text-white mb-2">
-                Нет челленджей в этой категории
-              </h3>
-              <p className="text-white/60">
-                Попробуйте выбрать другую категорию или вернитесь позже
-              </p>
-            </div>
-          )}
+          <AnimatePresence mode="wait">
+            {challenges.length > 0 ? (
+              <motion.div 
+                key="challenges-grid"
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                {challenges.map((challenge, index) => (
+                  <motion.div
+                    key={challenge.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                  >
+                    <ChallengeCard
+                      challenge={challenge}
+                      userChallenge={getUserChallenge(challenge.id)}
+                      onJoin={handleJoinChallenge}
+                      onContinue={handleContinueChallenge}
+                      loading={loading}
+                    />
+                  </motion.div>
+                ))}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="empty-state"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <ChallengesEmptyState onResetFilters={resetFilters} />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </section>
 
       {/* Premium CTA */}
       {user && (
-        <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white/5">
+        <motion.section 
+          className="py-16 px-4 sm:px-6 lg:px-8 bg-muted/50"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+          viewport={{ once: true }}
+        >
           <div className="container mx-auto text-center">
-            <Crown className="w-16 h-16 mx-auto mb-6 text-yellow-400" />
-            <h2 className="text-3xl font-bold text-white mb-4">
+            <Crown className="w-16 h-16 mx-auto mb-6 text-yellow-500" />
+            <h2 className="text-3xl font-bold mb-4">
               Хотите больше челленджей?
             </h2>
-            <p className="text-white/80 mb-8 max-w-2xl mx-auto">
+            <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
               С FitSpark Premium получите доступ к эксклюзивным челленджам 
               и удвойте свой прогресс
             </p>
@@ -220,8 +266,17 @@ export default function ChallengesPage() {
               </Button>
             </Link>
           </div>
-        </section>
+        </motion.section>
       )}
+
+      {/* Submit Proof Dialog */}
+      <SubmitProofDialog
+        open={proofDialogOpen}
+        onOpenChange={setProofDialogOpen}
+        challenge={selectedChallenge}
+        userChallenge={selectedUserChallenge}
+        onSubmit={handleSubmitProof}
+      />
     </div>
   )
 }

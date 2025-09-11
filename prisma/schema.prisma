@@ -26,6 +26,7 @@ model users {
   user_badges    user_badges[]
   user_scores    user_scores[]
   payments       payments[]
+  proofs         proofs[]
 
   @@map("users")
 }
@@ -65,6 +66,7 @@ model challenges {
   user_challenge user_challenge[]
   completions    completions[]
   badges         badges[]
+  proofs         proofs[]
 
   @@map("challenges")
 }
@@ -73,7 +75,7 @@ model user_challenge {
   id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id      String    @db.Uuid
   challenge_id String    @db.Uuid
-  progress     Int       @default(0) // Прогресс в процентах (0-100)
+  progress     Json      @default("[]") // Массив объектов: { day: number, value: number|null, proof_url?: string, media_url?: string, created_at: timestamptz }
   started_at   DateTime  @default(now()) @db.Timestamptz
   completed_at DateTime? @db.Timestamptz
   created_at   DateTime  @default(now()) @db.Timestamptz
@@ -81,9 +83,30 @@ model user_challenge {
   // Relations
   user      users      @relation(fields: [user_id], references: [id], onDelete: Cascade)
   challenge challenges @relation(fields: [challenge_id], references: [id], onDelete: Cascade)
+  proofs    proofs[]
 
   @@unique([user_id, challenge_id])
   @@map("user_challenge")
+}
+
+model proofs {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id      String   @db.Uuid
+  challenge_id String   @db.Uuid
+  user_challenge_id String @db.Uuid
+  day          Int
+  value        Decimal
+  proof_url    String?
+  media_url    String?
+  created_at   DateTime @default(now()) @db.Timestamptz
+
+  // Relations
+  user         users         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  challenge    challenges    @relation(fields: [challenge_id], references: [id], onDelete: Cascade)
+  user_challenge user_challenge @relation(fields: [user_challenge_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, challenge_id, day])
+  @@map("proofs")
 }
 
 model completions {
