@@ -3,70 +3,69 @@
 import * as React from "react"
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Crown, Target, Play, CheckCircle, ArrowLeft, Star, Zap } from "lucide-react"
+import { Crown, Target, ArrowLeft, Filter } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from "@/components/ui/glass-card"
-import { Badge } from "@/components/ui/badge"
 import { Navbar } from "@/components/navbar"
+import { ChallengeCard } from "@/components/challenge-card"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
-
 
 interface Challenge {
   id: string
   title: string
-  description: string
-  target: number
-  unit: string
-  icon: string
-  category: string
-  premium: boolean
+  short?: string
+  description?: string
+  difficulty: 'easy' | 'medium' | 'hard'
   duration_days: number
-  active: boolean
+  points: number
+  icon: string
+  image_url?: string
+  premium: boolean
+  category?: {
+    id: string
+    slug: string
+    name: string
+  }
+}
+
+interface Category {
+  id: string
+  slug: string
+  name: string
 }
 
 interface UserChallenge {
   id: string
   challenge_id: string
-  completed: boolean
-  start_date: string
-}
-
-const categoryColors = {
-  'активность': 'bg-gradient-to-r from-blue-500 to-cyan-500',
-  'питание': 'bg-gradient-to-r from-green-500 to-emerald-500', 
-  'силовая': 'bg-gradient-to-r from-red-500 to-orange-500',
-  'развитие': 'bg-gradient-to-r from-purple-500 to-pink-500',
-  'ментальное': 'bg-gradient-to-r from-indigo-500 to-purple-500',
-  'сон': 'bg-gradient-to-r from-violet-500 to-purple-500'
-}
-
-const categoryIcons = {
-  'активность': <Target className="w-5 h-5" />,
-  'питание': <Zap className="w-5 h-5" />,
-  'силовая': <Star className="w-5 h-5" />,
-  'развитие': <Target className="w-5 h-5" />,
-  'ментальное': <CheckCircle className="w-5 h-5" />,
-  'сон': <Star className="w-5 h-5" />
+  progress: number
+  started_at: string
+  completed_at?: string
 }
 
 export default function ChallengesPage() {
   const [challenges, setChallenges] = useState<Challenge[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [userChallenges, setUserChallenges] = useState<UserChallenge[]>([])
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const supabase = createClient()
 
-  const fetchChallenges = React.useCallback(async () => {
+  const fetchData = React.useCallback(async () => {
     try {
-      const response = await fetch('/api/challenges')
-      const data = await response.json()
-      setChallenges(data.challenges || [])
+      // Fetch challenges
+      const challengesResponse = await fetch('/api/challenges')
+      const challengesData = await challengesResponse.json()
+      setChallenges(challengesData.challenges || [])
       
+      // Fetch categories
+      const categoriesResponse = await fetch('/api/categories')
+      const categoriesData = await categoriesResponse.json()
+      setCategories(categoriesData.categories || [])
+      
+      // Fetch user's joined challenges if user is logged in
       if (user) {
-        // Fetch user's joined challenges
         const userResponse = await fetch('/api/user-challenges')
         if (userResponse.ok) {
           const userData = await userResponse.json()
@@ -74,7 +73,7 @@ export default function ChallengesPage() {
         }
       }
     } catch (error) {
-      console.error('Error fetching challenges:', error)
+      console.error('Error fetching data:', error)
     } finally {
       setLoading(false)
     }
@@ -86,39 +85,21 @@ export default function ChallengesPage() {
       setUser(user)
     }
     getUser()
-    fetchChallenges()
-  }, [supabase.auth, fetchChallenges])
+  }, [supabase.auth])
 
-  const joinChallenge = async (challengeId: string) => {
-    if (!user) {
-      toast.error("Войдите в аккаунт, чтобы присоединиться к челленджу")
-      return
+  useEffect(() => {
+    if (user !== null) {
+      fetchData()
     }
+  }, [user, fetchData])
 
-    try {
-      const response = await fetch('/api/join', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ challengeId })
-      })
-
-      if (response.ok) {
-        toast.success("Вы присоединились к челленджу!")
-        fetchChallenges()
-      } else {
-        const error = await response.json()
-        toast.error(error.error || "Ошибка при присоединении к челленджу")
-      }
-    } catch (error) {
-      console.error('Error joining challenge:', error)
-      toast.error("Ошибка при присоединении к челленджу")
-    }
+  const handleJoinChallenge = (challengeId: string) => {
+    fetchData() // Refresh data after joining
   }
 
-  const categories = ['all', ...Array.from(new Set(challenges.map(c => c.category)))]
   const filteredChallenges = selectedCategory === 'all' 
     ? challenges 
-    : challenges.filter(c => c.category === selectedCategory)
+    : challenges.filter(c => c.category?.slug === selectedCategory)
 
   const isJoined = (challengeId: string) => {
     return userChallenges.some(uc => uc.challenge_id === challengeId)
@@ -161,18 +142,30 @@ export default function ChallengesPage() {
 
           {/* Category Filter */}
           <div className="flex flex-wrap justify-center gap-3 mb-12">
+            <Button
+              variant={selectedCategory === 'all' ? "default" : "ghost"}
+              onClick={() => setSelectedCategory('all')}
+              className={`${
+                selectedCategory === 'all' 
+                  ? "bg-white/20 text-white" 
+                  : "text-white/80 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              <Filter className="w-4 h-4 mr-2" />
+              Все
+            </Button>
             {categories.map((category) => (
               <Button
-                key={category}
-                variant={selectedCategory === category ? "default" : "ghost"}
-                onClick={() => setSelectedCategory(category)}
+                key={category.slug}
+                variant={selectedCategory === category.slug ? "default" : "ghost"}
+                onClick={() => setSelectedCategory(category.slug)}
                 className={`${
-                  selectedCategory === category 
+                  selectedCategory === category.slug 
                     ? "bg-white/20 text-white" 
                     : "text-white/80 hover:bg-white/10 hover:text-white"
                 }`}
               >
-                {category === 'all' ? 'Все' : category}
+                {category.name}
               </Button>
             ))}
           </div>
@@ -183,86 +176,15 @@ export default function ChallengesPage() {
       <section className="pb-16 px-4 sm:px-6 lg:px-8">
         <div className="container mx-auto">
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredChallenges.map((challenge) => {
-              const categoryColor = categoryColors[challenge.category as keyof typeof categoryColors] || 'bg-gradient-to-r from-gray-500 to-gray-600'
-              const categoryIcon = categoryIcons[challenge.category as keyof typeof categoryIcons] || <Target className="w-5 h-5" />
-              const joined = isJoined(challenge.id)
-              
-              return (
-                <GlassCard key={challenge.id} className="group hover:scale-105 transition-transform duration-300">
-                  <GlassCardHeader>
-                    <div className="flex items-start justify-between mb-4">
-                      <div className={`w-12 h-12 rounded-xl ${categoryColor} flex items-center justify-center text-white`}>
-                        <span className="text-2xl">{challenge.icon}</span>
-                      </div>
-                      <div className="flex gap-2">
-                        {challenge.premium && (
-                          <Badge variant="secondary" className="bg-yellow-400/20 text-yellow-400 border-yellow-400/30">
-                            <Crown className="w-3 h-3 mr-1" />
-                            Premium
-                          </Badge>
-                        )}
-                        <Badge variant="outline" className="border-white/20 text-white/80">
-                          <div className="flex items-center">
-                            {categoryIcon}
-                            <span className="ml-1 text-xs">{challenge.category}</span>
-                          </div>
-                        </Badge>
-                      </div>
-                    </div>
-                    
-                    <GlassCardTitle className="mb-2">
-                      {challenge.title}
-                    </GlassCardTitle>
-                    <p className="text-white/80 text-sm mb-4">
-                      {challenge.description}
-                    </p>
-                  </GlassCardHeader>
-                  
-                  <GlassCardContent>
-                    <div className="space-y-4">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-white/80">Цель:</span>
-                        <span className="text-white font-semibold">
-                          {challenge.target} {challenge.unit}
-                        </span>
-                      </div>
-                      
-                      <div className="flex justify-between text-sm">
-                        <span className="text-white/80">Длительность:</span>
-                        <span className="text-white font-semibold">
-                          {challenge.duration_days} дней
-                        </span>
-                      </div>
-                      
-                      <Button 
-                        className="w-full mt-4" 
-                        onClick={() => joinChallenge(challenge.id)}
-                        disabled={joined || (challenge.premium && !user)}
-                        variant={joined ? "ghost" : "default"}
-                      >
-                        {joined ? (
-                          <>
-                            <CheckCircle className="w-4 h-4 mr-2" />
-                            Участвуете
-                          </>
-                        ) : challenge.premium && !user ? (
-                          <>
-                            <Crown className="w-4 h-4 mr-2" />
-                            Требуется Premium
-                          </>
-                        ) : (
-                          <>
-                            <Play className="w-4 h-4 mr-2" />
-                            Присоединиться
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </GlassCardContent>
-                </GlassCard>
-              )
-            })}
+            {filteredChallenges.map((challenge) => (
+              <ChallengeCard
+                key={challenge.id}
+                challenge={challenge}
+                onJoin={handleJoinChallenge}
+                isJoined={isJoined(challenge.id)}
+                loading={loading}
+              />
+            ))}
           </div>
 
           {filteredChallenges.length === 0 && (

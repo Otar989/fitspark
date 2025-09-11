@@ -6,9 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model users {
@@ -31,20 +30,38 @@ model users {
   @@map("users")
 }
 
+model categories {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug      String   @unique
+  name      String
+  created_at DateTime @default(now()) @db.Timestamptz
+
+  // Relations
+  challenges challenges[]
+
+  @@map("categories")
+}
+
 model challenges {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category_id   String   @db.Uuid
   title         String
+  short         String?  // Краткое описание
   description   String?
+  difficulty    String   @default("easy") // easy, medium, hard
   target        Int      @default(1)
   unit          String   @default("times")
   icon          String   @default("🎯")
-  category      String   @default("general")
+  image_url     String?
   premium       Boolean  @default(false)
-  active        Boolean  @default(true)
+  is_active     Boolean  @default(true)
   duration_days Int      @default(30)
+  points        Int      @default(10)
+  tasks         Json?    // JSON с задачами
   created_at    DateTime @default(now()) @db.Timestamptz
 
   // Relations
+  category      categories   @relation(fields: [category_id], references: [id], onDelete: Cascade)
   user_challenge user_challenge[]
   completions    completions[]
   badges         badges[]
@@ -56,9 +73,9 @@ model user_challenge {
   id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id      String    @db.Uuid
   challenge_id String    @db.Uuid
-  start_date   DateTime  @default(dbgenerated("current_date")) @db.Date
-  end_date     DateTime? @db.Date
-  completed    Boolean   @default(false)
+  progress     Int       @default(0) // Прогресс в процентах (0-100)
+  started_at   DateTime  @default(now()) @db.Timestamptz
+  completed_at DateTime? @db.Timestamptz
   created_at   DateTime  @default(now()) @db.Timestamptz
 
   // Relations

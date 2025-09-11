@@ -4,15 +4,30 @@ import { mockChallenges } from '@/lib/mock-data'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Try to use real Supabase first
     const supabase = createClient()
+    const { searchParams } = new URL(request.url)
+    const category = searchParams.get('category')
     
-    const { data: challenges, error } = await supabase
+    let query = supabase
       .from('challenges')
-      .select('*')
+      .select(`
+        *,
+        category:categories(
+          id,
+          slug,
+          name
+        )
+      `)
+      .eq('is_active', true)
       .order('created_at', { ascending: true })
+
+    if (category) {
+      query = query.eq('category.slug', category)
+    }
+
+    const { data: challenges, error } = await query
 
     if (error) {
       console.warn('Supabase error, using mock data:', error.message)

@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       .from('challenges')
       .select('id, premium')
       .eq('id', challengeId)
-      .eq('active', true)
+      .eq('is_active', true)
       .single()
 
     if (challengeError || !challenge) {
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
       .upsert({
         user_id: userData.id,
         challenge_id: challengeId,
-        start_date: new Date().toISOString().split('T')[0]
+        started_at: new Date().toISOString()
       })
 
     if (joinError) {
