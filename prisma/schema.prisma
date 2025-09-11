@@ -67,7 +67,6 @@ model challenges {
   user_challenges user_challenges[]
   completions     completions[]
   badges          badges[]
-  proofs          proofs[]
 
   @@map("challenges")
 }
