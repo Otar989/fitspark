@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Search, Filter, X } from 'lucide-react'
-import { SORT_OPTIONS, DIFFICULTY_LABELS } from '@/constants/challenges'
+import { SORT_OPTIONS, DIFFICULTY_LABELS, type ChallengeCategory, type ChallengeDifficulty } from '@/constants/challenges'
 
 interface Category {
   id: string

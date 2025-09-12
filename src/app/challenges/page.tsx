@@ -77,8 +77,19 @@ export default function ChallengesPage() {
     }
   }, [user, fetchData])
 
-  const handleFiltersChange = (newFilters: ChallengeFiltersType) => {
-    setFilters(newFilters)
+  const handleFiltersChange = (newFilters: {
+    categorySlug?: string
+    difficulty?: string
+    q?: string
+    sort?: 'popular' | 'newest' | 'points' | 'difficulty'
+  }) => {
+    const convertedFilters: ChallengeFiltersType = {
+      categorySlug: newFilters.categorySlug as any,
+      difficulty: newFilters.difficulty as any,
+      q: newFilters.q,
+      sort: newFilters.sort
+    }
+    setFilters(convertedFilters)
   }
 
   const handleJoinChallenge = async (challengeId: string) => {
