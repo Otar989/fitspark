@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Calendar, Target, Star, Crown, CheckCircle, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
-import { UserChallenge as UserChallengeType } from '@/lib/supabase/challenges'
+import { DatabaseUserChallenge as UserChallengeType } from '@/lib/supabase/challenges'
 
 type UserChallenge = UserChallengeType
 

@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ProofUploader } from '@/components/challenges/proof-uploader'
-import { Challenge, UserChallenge } from '@/lib/supabase/challenges'
+import { DatabaseChallenge as Challenge, DatabaseUserChallenge as UserChallenge } from '@/lib/supabase/challenges'
 import { CHALLENGE_UNITS } from '@/constants/challenges'
 import { toast } from 'sonner'
 

@@ -12,8 +12,8 @@ import { SubmitProofDialog } from '@/components/challenges/submit-proof-dialog'
 import { 
   getUserChallenges, 
   submitProof,
-  UserChallenge as UserChallengeType,
-  Challenge
+  DatabaseUserChallenge as UserChallengeType,
+  DatabaseChallenge as Challenge
 } from '@/lib/supabase/challenges'
 import { Navbar } from '@/components/navbar'
 import { ArrowLeft, User, Target, Trophy, Settings } from 'lucide-react'
@@ -36,7 +36,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [user, setUser] = useState<any>(null)
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null)
-  const [selectedUserChallenge, setSelectedUserChallenge] = useState<UserChallenge | null>(null)
+  const [selectedUserChallenge, setSelectedUserChallenge] = useState<UserChallengeType | null>(null)
   const [proofDialogOpen, setProofDialogOpen] = useState(false)
   const supabase = createClient()
 
@@ -117,12 +117,12 @@ export default function ProfilePage() {
     proofUrl?: string
     file?: File
   }) => {
-    if (!user || !selectedChallenge) return
+    if (!user || !selectedUserChallenge) return
 
     try {
       await submitProof({
         userId: user.id,
-        challengeId: selectedChallenge.id,
+        userChallengeId: selectedUserChallenge.id,
         ...data
       })
       
