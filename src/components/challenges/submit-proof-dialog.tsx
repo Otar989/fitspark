@@ -165,7 +165,7 @@ export function SubmitProofDialog({
             <Input
               id="value"
               type="number"
-              placeholder={unitInfo?.placeholder || `Например: ${challenge.target}`}
+              placeholder={unitInfo?.placeholder || `Например: ${challenge.target_value}`}
               value={value}
               onChange={(e) => setValue(e.target.value)}
               min="0"
