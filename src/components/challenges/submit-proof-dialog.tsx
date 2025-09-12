@@ -1,10 +1,8 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { 
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -12,7 +10,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { 
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -34,7 +34,7 @@ interface SubmitProofDialogProps {
     value: number
     proofUrl?: string
     file?: File
-  }) => Promise<void>
+  }) => void
 }
 
 export function SubmitProofDialog({
@@ -45,8 +45,8 @@ export function SubmitProofDialog({
   onSubmit
 }: SubmitProofDialogProps) {
   const [day, setDay] = useState<number>(1)
-  const [value, setValue] = useState<string>('')
-  const [proofUrl, setProofUrl] = useState<string>('')
+  const [value, setValue] = useState('')
+  const [proofText, setProofText] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -56,16 +56,17 @@ export function SubmitProofDialog({
   // Reset form when dialog opens/closes
   useEffect(() => {
     if (open && challenge) {
+      setDay(1)
       setValue('')
-      setProofUrl('')
+      setProofText('')
       setSelectedFile(null)
+    } else {
       setDay(1)
     }
   }, [open, challenge])
 
-  // Get completed days to show which days are available
+  // Get completed days (simplified for now)
   const getCompletedDays = (): number[] => {
-    // For now, return empty array since we need to implement proof tracking
     // TODO: Implement proper proof tracking to show completed days
     return []
   }
@@ -73,19 +74,11 @@ export function SubmitProofDialog({
   const completedDays = getCompletedDays()
 
   const handleSubmit = async () => {
-    if (!challenge || !value || !day) {
-      toast.error('Заполните все обязательные поля')
-      return
-    }
+    if (!challenge) return
 
-    const numericValue = parseFloat(value)
-    if (isNaN(numericValue) || numericValue <= 0) {
-      toast.error('Введите корректное значение')
-      return
-    }
-
-    if (proofUrl && !isValidUrl(proofUrl)) {
-      toast.error('Введите корректную ссылку')
+    const numValue = parseFloat(value)
+    if (isNaN(numValue) || numValue <= 0) {
+      toast.error('Пожалуйста, введите корректное значение')
       return
     }
 
@@ -93,27 +86,18 @@ export function SubmitProofDialog({
     try {
       await onSubmit({
         day,
-        value: numericValue,
-        proofUrl: proofUrl || undefined,
+        value: numValue,
+        proofUrl: proofText || undefined,
         file: selectedFile || undefined
       })
       
       onOpenChange(false)
-      toast.success('Челлендж выполнен!')
+      toast.success('Доказательство отправлено!')
     } catch (error) {
       console.error('Error submitting proof:', error)
-      toast.error('Ошибка при выполнении челленджа')
+      toast.error('Ошибка при отправке доказательства')
     } finally {
       setIsSubmitting(false)
-    }
-  }
-
-  const isValidUrl = (url: string): boolean => {
-    try {
-      new URL(url)
-      return true
-    } catch {
-      return false
     }
   }
 
@@ -121,41 +105,40 @@ export function SubmitProofDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Выполнить челлендж</DialogTitle>
+          <DialogTitle>Отправить доказательство</DialogTitle>
           <DialogDescription>
             {challenge.title}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="grid gap-4 py-4">
           {/* Day Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="day">День</Label>
-            <Select value={day.toString()} onValueChange={(value) => setDay(parseInt(value))}>
-              <SelectTrigger>
-                <SelectValue placeholder="Выберите день" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableDays.map((dayNum) => {
-                  const isCompleted = completedDays.includes(dayNum)
-                  return (
-                    <SelectItem 
-                      key={dayNum} 
-                      value={dayNum.toString()}
-                      disabled={isCompleted}
-                    >
-                      День {dayNum} {isCompleted && '(выполнен)'}
-                    </SelectItem>
-                  )
-                })}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Вы можете выполнять челлендж только за текущий или прошедшие дни
-            </p>
-          </div>
+          {availableDays.length > 1 && (
+            <div className="space-y-2">
+              <Label htmlFor="day">День</Label>
+              <Select value={day.toString()} onValueChange={(value) => setDay(parseInt(value))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите день" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableDays.map((dayNum) => {
+                    const isCompleted = completedDays.includes(dayNum)
+                    return (
+                      <SelectItem 
+                        key={dayNum} 
+                        value={dayNum.toString()}
+                        disabled={isCompleted}
+                      >
+                        День {dayNum} {isCompleted ? '(выполнено)' : ''}
+                      </SelectItem>
+                    )
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Value Input */}
           <div className="space-y-2">
@@ -170,47 +153,40 @@ export function SubmitProofDialog({
               onChange={(e) => setValue(e.target.value)}
               min="0"
               step="0.1"
+              required
+            />
+          </div>
+
+          {/* Proof Text */}
+          <div className="space-y-2">
+            <Label htmlFor="proofText">Описание (необязательно)</Label>
+            <Input
+              id="proofText"
+              placeholder="Опишите как выполнили задание..."
+              value={proofText}
+              onChange={(e) => setProofText(e.target.value)}
             />
           </div>
 
           {/* File Upload */}
           <div className="space-y-2">
-            <Label>Медиа-пруф (опционально)</Label>
+            <Label>Фото/видео доказательство (необязательно)</Label>
             <ProofUploader
               onFileSelect={setSelectedFile}
               selectedFile={selectedFile}
             />
           </div>
-
-          {/* Proof URL */}
-          <div className="space-y-2">
-            <Label htmlFor="proof-url">Ссылка на пруф (опционально)</Label>
-            <Input
-              id="proof-url"
-              type="url"
-              placeholder="https://..."
-              value={proofUrl}
-              onChange={(e) => setProofUrl(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              Можете прикрепить фото или видео для подтверждения
-            </p>
-          </div>
         </div>
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isSubmitting}
-          >
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Отмена
           </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={isSubmitting || !value || !day}
+          <Button 
+            onClick={handleSubmit} 
+            disabled={!value || isSubmitting}
           >
-            {isSubmitting ? 'Выполнение...' : 'Выполнить'}
+            {isSubmitting ? 'Отправка...' : 'Отправить'}
           </Button>
         </DialogFooter>
       </DialogContent>
