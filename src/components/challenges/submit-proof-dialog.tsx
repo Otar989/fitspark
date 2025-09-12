@@ -64,7 +64,7 @@ export function SubmitProofDialog({
   }, [open, challenge])
 
   // Get completed days to show which days are available
-  const getCompletedDays = () => {
+  const getCompletedDays = (): number[] => {
     // For now, return empty array since we need to implement proof tracking
     // TODO: Implement proper proof tracking to show completed days
     return []
