@@ -65,10 +65,9 @@ export function SubmitProofDialog({
 
   // Get completed days to show which days are available
   const getCompletedDays = () => {
-    if (!userChallenge?.progress) return []
-    return userChallenge.progress
-      .map((p: any, index: number) => p.value !== null ? index + 1 : null)
-      .filter(Boolean)
+    // For now, return empty array since we need to implement proof tracking
+    // TODO: Implement proper proof tracking to show completed days
+    return []
   }
 
   const completedDays = getCompletedDays()
