@@ -14,11 +14,13 @@ import {
   DIFFICULTY_COLORS, 
   CHALLENGE_CATEGORIES,
   CHALLENGE_MESSAGES,
-  type DatabaseChallenge,
-  type DatabaseUserChallenge,
   type ChallengeCategory
 } from '@/constants/challenges'
-import { joinChallenge } from '@/lib/supabase/challenges'
+import { 
+  joinChallenge,
+  type DatabaseChallenge,
+  type DatabaseUserChallenge
+} from '@/lib/supabase/challenges'
 
 interface ChallengeCardProps {
   challenge: DatabaseChallenge
