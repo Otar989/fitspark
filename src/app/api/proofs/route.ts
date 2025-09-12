@@ -1,41 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { updateChallengeProgress } from '@/lib/supabase/challenges'
 
 export const dynamic = 'force-dynamic'
 
-const MAX_FILE_SIZE = 20 * 1024 * 1024 // 20MB
-const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/webm']
-
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔄 Proofs API: Processing proof submission...')
     const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      console.error('❌ Proofs API: Authentication failed:', authError?.message)
-      return NextResponse.json(
-        { error: 'Authentication required' }, 
-        { status: 401 }
-      )
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const body = await request.json()
     const { userChallengeId, proofType, proofText, proofNumber, file } = body
 
-    console.log('🔄 Proofs API: Proof data received:', {
+    console.log('🔄 Submit Proof API: Processing proof submission:', {
       userChallengeId,
       proofType,
-      hasText: !!proofText,
-      hasNumber: !!proofNumber,
-      hasFile: !!file
+      userId: user.id
     })
 
     if (!userChallengeId || !proofType) {
-      console.error('❌ Proofs API: Missing required fields')
       return NextResponse.json(
-        { error: 'userChallengeId and proofType are required' }, 
+        { error: 'User challenge ID and proof type are required' }, 
         { status: 400 }
       )
     }
@@ -43,101 +32,90 @@ export async function POST(request: NextRequest) {
     // Verify user owns this challenge
     const { data: userChallenge, error: challengeError } = await supabase
       .from('user_challenges')
-      .select('id, user_id, status')
+      .select(`
+        id,
+        status,
+        challenge:challenges(
+          id,
+          title,
+          target_value,
+          target_unit,
+          proof_required
+        )
+      `)
       .eq('id', userChallengeId)
       .eq('user_id', user.id)
       .single()
 
     if (challengeError || !userChallenge) {
-      console.error('❌ Proofs API: User challenge not found:', challengeError?.message)
+      console.error('❌ Submit Proof API: User challenge not found:', challengeError?.message)
       return NextResponse.json(
-        { error: 'User challenge not found or access denied' }, 
+        { error: 'User challenge not found' }, 
         { status: 404 }
       )
     }
 
     if (userChallenge.status !== 'active') {
-      console.error('❌ Proofs API: Challenge not active:', userChallenge.status)
       return NextResponse.json(
         { error: 'Challenge is not active' }, 
         { status: 400 }
       )
     }
 
-    let fileUrl: string | undefined
-
-    // Handle file upload if provided
-    if (file && (proofType === 'photo' || proofType === 'video')) {
-      console.log('🔄 Proofs API: Processing file upload...')
-      
-      // Convert base64 to file if needed (this is a simplified example)
-      // In a real implementation, you'd handle multipart/form-data or base64
-      const fileExt = proofType === 'photo' ? 'jpg' : 'mp4'
-      const fileName = `${user.id}/${userChallengeId}/${Date.now()}.${fileExt}`
-      
-      try {
-        // This is a placeholder - you'd need to handle actual file upload
-        // For now, we'll just set a placeholder URL
-        fileUrl = `https://placeholder.supabase.co/storage/v1/object/public/proofs/${fileName}`
-        console.log('📁 Proofs API: File upload simulated:', fileUrl)
-      } catch (uploadError) {
-        console.error('❌ Proofs API: File upload failed:', uploadError)
-        return NextResponse.json(
-          { error: 'Failed to upload file' }, 
-          { status: 500 }
-        )
-      }
+    // Create proof record
+    const proofData: any = {
+      user_challenge_id: userChallengeId,
+      proof_type: proofType,
+      submitted_at: new Date().toISOString(),
+      is_verified: true // Auto-verify for now
     }
 
-    // Create proof record
-    const { data: proof, error: insertError } = await supabase
+    // Add proof content based on type
+    if (proofType === 'text' && proofText) {
+      proofData.proof_text = proofText
+    }
+    
+    if (proofType === 'number' && proofNumber !== undefined) {
+      proofData.proof_number = proofNumber
+    }
+
+    if (proofType === 'photo' || proofType === 'video') {
+      // TODO: Handle file upload to Supabase storage
+      // For now, just store as text placeholder
+      proofData.proof_text = proofText || 'File uploaded'
+    }
+
+    const { data: proof, error: proofError } = await supabase
       .from('proofs')
-      .insert({
-        user_challenge_id: userChallengeId,
-        proof_type: proofType,
-        proof_text: proofText || null,
-        proof_number: proofNumber || null,
-        file_url: fileUrl || null,
-        submitted_at: new Date().toISOString(),
-        is_verified: false
-      })
+      .insert(proofData)
       .select()
       .single()
 
-    if (insertError) {
-      console.error('❌ Proofs API: Error creating proof:', {
-        message: insertError.message,
-        details: insertError.details,
-        hint: insertError.hint,
-        code: insertError.code
-      })
+    if (proofError) {
+      console.error('❌ Submit Proof API: Error creating proof:', proofError.message)
       return NextResponse.json(
-        { 
-          error: 'Failed to create proof',
-          details: process.env.NODE_ENV === 'development' ? insertError.message : undefined
-        }, 
+        { error: 'Failed to submit proof' }, 
         { status: 500 }
       )
     }
 
-    // Update challenge progress (simplified)
-    const progressIncrement = proofNumber || 1
-    const { error: updateError } = await supabase.rpc('update_challenge_progress', {
-      user_challenge_id: userChallengeId,
-      progress_increment: progressIncrement
-    }).single()
+    console.log('✅ Submit Proof API: Proof created:', proof.id)
 
-    if (updateError) {
-      console.warn('⚠️ Proofs API: Could not update progress (non-critical):', updateError.message)
+    // Update challenge progress
+    try {
+      await updateChallengeProgress(userChallengeId)
+      console.log('✅ Submit Proof API: Challenge progress updated')
+    } catch (progressError) {
+      console.error('❌ Submit Proof API: Error updating progress:', progressError)
+      // Don't fail the request if progress update fails
     }
 
-    console.log('✅ Proofs API: Proof submitted successfully:', proof.id)
     return NextResponse.json({ 
       message: 'Proof submitted successfully',
-      proof
+      proof 
     })
   } catch (error) {
-    console.error('❌ Proofs API: Unexpected error:', error)
+    console.error('❌ Submit Proof API: Unexpected error:', error)
     return NextResponse.json(
       { 
         error: 'Internal server error',

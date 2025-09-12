@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
+import Link from 'next/link'
 import { 
   Trophy, 
   Flame, 
@@ -11,32 +12,34 @@ import {
   Activity,
   Moon,
   Dumbbell,
-  Zap
+  Zap,
+  Loader2,
+  Play
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { CompleteDialog } from '@/components/complete-dialog'
-
-interface Challenge {
-  id: string
-  title: string
-  description?: string
-  category: string
-  unit: string
-  target: number
-  icon?: string
-  premium: boolean
-  active?: boolean
-  duration_days?: number
-}
+import { ProgressBar } from '@/components/challenges/progress-bar'
+import { 
+  getChallenges, 
+  getUserChallenges,
+  type DatabaseChallenge,
+  type DatabaseUserChallenge 
+} from '@/lib/supabase/challenges'
+import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
+import { 
+  CHALLENGE_CATEGORIES,
+  CHALLENGE_UNITS,
+  DIFFICULTY_COLORS,
+  DIFFICULTY_LABELS 
+} from '@/constants/challenges'
 
 interface UserStats {
   totalPoints: number
   totalChallenges: number
   completedToday: number
-  longestStreak: number
   currentStreak: number
   weeklyRank: number
   badges: number
@@ -57,81 +60,111 @@ const categoryIcons = {
 }
 
 export function DashboardContent() {
-  const [challenges, setChallenges] = useState<Challenge[]>([])
+  const [challenges, setChallenges] = useState<DatabaseChallenge[]>([])
+  const [userChallenges, setUserChallenges] = useState<DatabaseUserChallenge[]>([])
+  const [user, setUser] = useState<any>(null)
   const [stats, setStats] = useState<UserStats>({ 
     totalPoints: 0, 
     totalChallenges: 0, 
     completedToday: 0,
-    longestStreak: 0,
     currentStreak: 0,
     weeklyRank: 0,
     badges: 0
   })
-  const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null)
-  const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  const supabase = createClient()
 
   useEffect(() => {
-    fetchDashboardData()
-  }, [])
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+      if (user) {
+        fetchDashboardData(user.id)
+      } else {
+        setLoading(false)
+      }
+    }
+    getUser()
+  }, [supabase.auth])
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (userId: string) => {
     try {
-      // Fetch user profile and stats
-      const profileResponse = await fetch('/api/me')
-      if (profileResponse.ok) {
-        const profileData = await profileResponse.json()
-        setStats(profileData.stats)
-      }
+      setLoading(true)
+      
+      // Fetch popular challenges (limited)
+      const challengesData = await getChallenges({ sort: 'popular' })
+      setChallenges(challengesData.slice(0, 6))
+      
+      // Fetch user's joined challenges
+      const userChallengesData = await getUserChallenges(userId)
+      setUserChallenges(userChallengesData)
+      
+      // Calculate stats from user challenges
+      const totalPoints = userChallengesData
+        .filter(uc => uc.status === 'completed')
+        .reduce((sum, uc) => {
+          const challenge = challengesData.find(c => c.id === uc.challenge_id)
+          return sum + (challenge?.points_reward || 0)
+        }, 0)
 
-      // Fetch challenges
-      const challengesResponse = await fetch('/api/challenges')
-      if (challengesResponse.ok) {
-        const challengesData = await challengesResponse.json()
-        setChallenges(challengesData.challenges)
-      }
+      const completedToday = userChallengesData.filter(uc => {
+        const today = new Date().toDateString()
+        return uc.completed_at && new Date(uc.completed_at).toDateString() === today
+      }).length
+
+      setStats({
+        totalPoints,
+        totalChallenges: userChallengesData.length,
+        completedToday,
+        currentStreak: 0, // TODO: Calculate actual streak
+        weeklyRank: 0, // TODO: Calculate from leaderboard
+        badges: 0 // TODO: Calculate from badges
+      })
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
+      toast.error('Ошибка при загрузке данных')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleCompleteChallenge = (challenge: Challenge) => {
-    setSelectedChallenge(challenge)
-    setIsCompleteDialogOpen(true)
+  const getUserChallenge = (challengeId: string) => {
+    return userChallenges.find(uc => uc.challenge_id === challengeId)
   }
 
-  const handleCompleteSubmit = async (value: number, proofUrl?: string) => {
-    if (!selectedChallenge) return
-
-    try {
-      const response = await fetch('/api/complete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          challengeId: selectedChallenge.id,
-          value,
-          proofUrl
-        })
-      })
-
-      if (response.ok) {
-        setIsCompleteDialogOpen(false)
-        setSelectedChallenge(null)
-        fetchDashboardData() // Refresh data
-      }
-    } catch (error) {
-      console.error('Error completing challenge:', error)
-    }
+  const getProgressPercentage = (userChallenge?: DatabaseUserChallenge) => {
+    if (!userChallenge) return 0
+    return Math.round(userChallenge.current_progress || 0)
   }
 
   if (loading) {
     return (
-      <div className="space-y-8 animate-pulse">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="glass rounded-2xl h-32" />
-        ))}
+      <div className="space-y-8">
+        <div className="text-center py-12">
+          <Loader2 className="w-12 h-12 mx-auto mb-4 animate-spin text-primary" />
+          <p className="text-muted-foreground">Загружаем ваш дашборд...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="space-y-8">
+        <Card className="p-8 text-center">
+          <CardContent>
+            <Target className="w-16 h-16 mx-auto mb-6 text-muted-foreground" />
+            <CardTitle className="mb-4">Добро пожаловать в FitSpark!</CardTitle>
+            <p className="text-muted-foreground mb-6">
+              Войдите в аккаунт, чтобы начать выполнять челленджи и отслеживать прогресс
+            </p>
+            <Link href="/auth/login">
+              <Button size="lg">
+                Войти в аккаунт
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -140,89 +173,98 @@ export function DashboardContent() {
     <div className="space-y-8">
       {/* Welcome & Stats */}
       <div className="grid md:grid-cols-3 gap-6">
-        <GlassCard className="md:col-span-2">
-          <GlassCardHeader>
-            <GlassCardTitle>Добро пожаловать в FitSpark! ⚡</GlassCardTitle>
-            <p className="text-white/80">
+        <Card className="md:col-span-2 glass-card">
+          <CardHeader>
+            <CardTitle className="text-2xl">Добро пожаловать в FitSpark! ⚡</CardTitle>
+            <p className="text-muted-foreground">
               Выполняй челленджи, зарабатывай очки и поддерживай здоровые привычки
             </p>
-          </GlassCardHeader>
-        </GlassCard>
+          </CardHeader>
+        </Card>
 
-        <GlassCard variant="accent">
-          <GlassCardContent className="p-6">
+        <Card className="glass-card bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20">
+          <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-white/80 text-sm">Всего очков</p>
-                <p className="text-2xl font-bold text-white">{stats.totalPoints}</p>
+                <p className="text-muted-foreground text-sm">Всего очков</p>
+                <p className="text-2xl font-bold">{stats.totalPoints}</p>
               </div>
-              <Trophy className="w-8 h-8 text-yellow-400" />
+              <Trophy className="w-8 h-8 text-yellow-500" />
             </div>
-          </GlassCardContent>
-        </GlassCard>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <GlassCard>
-          <GlassCardContent className="p-4 text-center">
-            <Target className="w-6 h-6 mx-auto mb-2 text-blue-400" />
-            <p className="text-sm text-white/80">Сегодня</p>
-            <p className="text-xl font-bold text-white">{stats.completedToday}</p>
-          </GlassCardContent>
-        </GlassCard>
+        <Card className="glass-card">
+          <CardContent className="p-4 text-center">
+            <Target className="w-6 h-6 mx-auto mb-2 text-blue-500" />
+            <p className="text-sm text-muted-foreground">Сегодня</p>
+            <p className="text-xl font-bold">{stats.completedToday}</p>
+          </CardContent>
+        </Card>
 
-        <GlassCard>
-          <GlassCardContent className="p-4 text-center">
-            <Flame className="w-6 h-6 mx-auto mb-2 text-orange-400" />
-            <p className="text-sm text-white/80">Стрик</p>
-            <p className="text-xl font-bold text-white">{stats.currentStreak}</p>
-          </GlassCardContent>
-        </GlassCard>
+        <Card className="glass-card">
+          <CardContent className="p-4 text-center">
+            <Flame className="w-6 h-6 mx-auto mb-2 text-orange-500" />
+            <p className="text-sm text-muted-foreground">Стрик</p>
+            <p className="text-xl font-bold">{stats.currentStreak}</p>
+          </CardContent>
+        </Card>
 
-        <GlassCard>
-          <GlassCardContent className="p-4 text-center">
-            <Trophy className="w-6 h-6 mx-auto mb-2 text-yellow-400" />
-            <p className="text-sm text-white/80">Рейтинг</p>
-            <p className="text-xl font-bold text-white">#{stats.weeklyRank}</p>
-          </GlassCardContent>
-        </GlassCard>
+        <Card className="glass-card">
+          <CardContent className="p-4 text-center">
+            <Trophy className="w-6 h-6 mx-auto mb-2 text-yellow-500" />
+            <p className="text-sm text-muted-foreground">Рейтинг</p>
+            <p className="text-xl font-bold">#{stats.weeklyRank || '-'}</p>
+          </CardContent>
+        </Card>
 
-        <GlassCard>
-          <GlassCardContent className="p-4 text-center">
-            <Zap className="w-6 h-6 mx-auto mb-2 text-purple-400" />
-            <p className="text-sm text-white/80">Бейджей</p>
-            <p className="text-xl font-bold text-white">{stats.badges}</p>
-          </GlassCardContent>
-        </GlassCard>
+        <Card className="glass-card">
+          <CardContent className="p-4 text-center">
+            <Zap className="w-6 h-6 mx-auto mb-2 text-purple-500" />
+            <p className="text-sm text-muted-foreground">Челленджей</p>
+            <p className="text-xl font-bold">{stats.totalChallenges}</p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Today's Challenges */}
+      {/* Popular Challenges */}
       <div>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white">Сегодняшние челленджи</h2>
-          <Button variant="glass" size="sm">
-            <Plus className="w-4 h-4 mr-2" />
-            Добавить челлендж
-          </Button>
+          <h2 className="text-2xl font-bold">Популярные челленджи</h2>
+          <Link href="/challenges">
+            <Button variant="outline" size="sm">
+              <Plus className="w-4 h-4 mr-2" />
+              Все челленджи
+            </Button>
+          </Link>
         </div>
 
         {challenges.length === 0 ? (
-          <GlassCard>
-            <GlassCardContent className="p-8 text-center">
-              <Target className="w-12 h-12 mx-auto mb-4 text-white/60" />
-              <p className="text-white/80 mb-4">
-                У вас пока нет активных челленджей
+          <Card className="glass-card">
+            <CardContent className="p-8 text-center">
+              <Target className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-muted-foreground mb-4">
+                Челленджи загружаются...
               </p>
-              <Button variant="glassPrimary">
-                Выбрать челленджи
-              </Button>
-            </GlassCardContent>
-          </GlassCard>
+              <Link href="/challenges">
+                <Button>
+                  Перейти к челленджам
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {challenges.slice(0, 6).map((challenge, index) => {
-              const IconComponent = categoryIcons[challenge.category as keyof typeof categoryIcons]
+            {challenges.map((challenge, index) => {
+              const userChallenge = getUserChallenge(challenge.id)
+              const categoryInfo = challenge.category ? CHALLENGE_CATEGORIES[challenge.category.slug as keyof typeof CHALLENGE_CATEGORIES] : null
+              const unitInfo = CHALLENGE_UNITS[challenge.target_unit as keyof typeof CHALLENGE_UNITS] || {
+                label: challenge.target_unit,
+                icon: '🎯'
+              }
               
               return (
                 <motion.div
@@ -231,70 +273,88 @@ export function DashboardContent() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
                 >
-                  <GlassCard>
-                    <GlassCardHeader>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
-                            {challenge.icon ? (
-                              <span className="text-lg">{challenge.icon}</span>
-                            ) : IconComponent ? (
-                              <IconComponent className="w-5 h-5 text-white" />
-                            ) : (
-                              <Target className="w-5 h-5 text-white" />
+                  <Card className="glass-card h-full flex flex-col">
+                    <CardHeader className="pb-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3 flex-1">
+                          <div className="text-2xl">{categoryInfo?.icon || '🎯'}</div>
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className="text-lg font-semibold line-clamp-2 mb-1">
+                              {challenge.title}
+                            </CardTitle>
+                            {challenge.category && (
+                              <Badge 
+                                variant="outline" 
+                                className={`text-xs border challenge-${challenge.category.slug}`}
+                              >
+                                {challenge.category.name}
+                              </Badge>
                             )}
                           </div>
-                          <div>
-                            <h3 className="font-semibold text-white">{challenge.title}</h3>
-                            <div className="flex items-center space-x-2 mt-1">
-                              {challenge.premium && (
-                                <Badge variant="secondary" className="text-xs">
-                                  Premium
-                                </Badge>
-                              )}
-                              <span className="text-xs text-white/60">{challenge.category}</span>
-                            </div>
+                        </div>
+                        {challenge.is_premium && (
+                          <Trophy className="w-5 h-5 text-yellow-500" />
+                        )}
+                      </div>
+                    </CardHeader>
+
+                    <CardContent className="flex-1 flex flex-col">
+                      <p className="text-muted-foreground text-sm mb-4 line-clamp-3">
+                        {challenge.description}
+                      </p>
+
+                      {/* Progress for active challenges */}
+                      {userChallenge && userChallenge.status === 'active' && (
+                        <div className="mb-4">
+                          <div className="flex justify-between text-sm mb-2">
+                            <span className="text-muted-foreground">Прогресс</span>
+                            <span className="font-medium">{getProgressPercentage(userChallenge)}%</span>
                           </div>
+                          <ProgressBar progress={getProgressPercentage(userChallenge)} />
+                        </div>
+                      )}
+
+                      {/* Challenge info */}
+                      <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Target className="w-4 h-4 shrink-0" />
+                          <span>{challenge.target_value} {unitInfo.label}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Trophy className="w-4 h-4 shrink-0" />
+                          <span>{challenge.points_reward} баллов</span>
                         </div>
                       </div>
-                    </GlassCardHeader>
-                    <GlassCardContent>
-                      {challenge.description && (
-                        <p className="text-white/60 text-xs mb-2">
-                          {challenge.description}
-                        </p>
-                      )}
-                      <p className="text-white/80 text-sm mb-4">
-                        Цель: {challenge.target} {challenge.unit}
-                      </p>
-                      <Button 
-                        className="w-full" 
-                        variant="glass"
-                        onClick={() => handleCompleteChallenge(challenge)}
-                      >
-                        Выполнить
-                      </Button>
-                    </GlassCardContent>
-                  </GlassCard>
+
+                      {/* Action buttons */}
+                      <div className="mt-auto">
+                        {!userChallenge ? (
+                          <Link href="/challenges">
+                            <Button className="w-full" size="sm">
+                              <Play className="w-4 h-4 mr-2" />
+                              Начать
+                            </Button>
+                          </Link>
+                        ) : userChallenge.status === 'active' ? (
+                          <Link href="/challenges">
+                            <Button variant="outline" className="w-full" size="sm">
+                              Продолжить
+                            </Button>
+                          </Link>
+                        ) : (
+                          <Badge className="w-full justify-center bg-green-500/20 text-green-500 border-green-500/30 px-3 py-1">
+                            Завершен
+                          </Badge>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
                 </motion.div>
               )
             })}
           </div>
         )}
       </div>
-
-      {/* Complete Dialog */}
-      {selectedChallenge && (
-        <CompleteDialog
-          isOpen={isCompleteDialogOpen}
-          onClose={() => {
-            setIsCompleteDialogOpen(false)
-            setSelectedChallenge(null)
-          }}
-          challenge={selectedChallenge}
-          onSubmit={handleCompleteSubmit}
-        />
-      )}
     </div>
   )
 }

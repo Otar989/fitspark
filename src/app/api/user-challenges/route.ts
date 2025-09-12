@@ -5,22 +5,20 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔄 User Challenges API: Fetching user challenges...')
     const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      console.error('❌ User Challenges API: Authentication failed:', authError?.message)
-      return NextResponse.json(
-        { error: 'Authentication required' }, 
-        { status: 401 }
-      )
-    }
-
-    console.log('🔄 User Challenges API: User authenticated:', user.id, 'Status filter:', status)
+    console.log('🔄 User Challenges API: Fetching user challenges:', {
+      userId: user.id,
+      status
+    })
 
     let query = supabase
       .from('user_challenges')
@@ -50,35 +48,31 @@ export async function GET(request: NextRequest) {
             slug,
             name,
             icon,
-            color
+            color,
+            description
           )
         )
       `)
       .eq('user_id', user.id)
 
-    // Apply status filter if provided
-    if (status && status !== 'all') {
+    if (status) {
       query = query.eq('status', status)
     }
 
-    query = query.order('joined_at', { ascending: false })
-
-    const { data: userChallenges, error } = await query
+    const { data: userChallenges, error } = await query.order('created_at', { ascending: false })
 
     if (error) {
       console.error('❌ User Challenges API: Supabase error:', {
         message: error.message,
         details: error.details,
         hint: error.hint,
-        code: error.code,
-        userId: user.id,
-        status
+        code: error.code
       })
       return NextResponse.json(
         { 
           error: 'Failed to fetch user challenges',
           details: process.env.NODE_ENV === 'development' ? error.message : undefined
-        }, 
+        },
         { status: 500 }
       )
     }
@@ -91,7 +85,7 @@ export async function GET(request: NextRequest) {
       { 
         error: 'Internal server error',
         details: process.env.NODE_ENV === 'development' ? String(error) : undefined
-      }, 
+      },
       { status: 500 }
     )
   }

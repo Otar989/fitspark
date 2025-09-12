@@ -155,19 +155,16 @@ export function ChallengeCard({
               <span>{challenge.target_value} {unitInfo.label}</span>
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
-              <Users className="w-4 h-4 shrink-0" />
-              <span>{challenge.participant_count || 0}</span>
+              <Badge 
+                className={`${DIFFICULTY_COLORS[challenge.difficulty]} border px-2 py-1 text-xs`}
+              >
+                {DIFFICULTY_LABELS[challenge.difficulty]}
+              </Badge>
             </div>
           </div>
 
           {/* Action buttons */}
-          <div className="flex items-center justify-between mt-auto">
-            <Badge 
-              className={`${DIFFICULTY_COLORS[challenge.difficulty]} border px-2 py-1`}
-            >
-              {DIFFICULTY_LABELS[challenge.difficulty]}
-            </Badge>
-            
+          <div className="flex items-center justify-end mt-auto">
             <div className="flex gap-2">
               {status === 'not_joined' && (
                 <Button

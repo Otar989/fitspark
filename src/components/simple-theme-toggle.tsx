@@ -27,12 +27,18 @@ export function SimpleThemeToggle() {
           <span className="sr-only">Переключить тему</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="glass border-white/20">
-        <DropdownMenuItem onClick={() => setTheme("light")} className="text-white hover:bg-white/20">
+      <DropdownMenuContent align="end" className="bg-background/95 backdrop-blur border border-border shadow-lg">
+        <DropdownMenuItem 
+          onClick={() => setTheme("light")} 
+          className="text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+        >
           <Sun className="mr-2 h-4 w-4" />
           <span>Светлая</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")} className="text-white hover:bg-white/20">
+        <DropdownMenuItem 
+          onClick={() => setTheme("dark")} 
+          className="text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+        >
           <Moon className="mr-2 h-4 w-4" />
           <span>Тёмная</span>
         </DropdownMenuItem>

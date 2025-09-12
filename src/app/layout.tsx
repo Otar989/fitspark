@@ -37,12 +37,18 @@ export default function RootLayout({
     <html lang="ru" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
         <SimpleThemeProvider defaultTheme="dark">
-          {/* Background gradient */}
+          {/* Background gradient with better theme contrast */}
           <div className="fixed inset-0 -z-10">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-blue-900/20 to-pink-900/20 dark:from-purple-900/40 dark:via-blue-900/40 dark:to-pink-900/40" />
-            <div className="absolute inset-0 bg-gradient-to-tl from-indigo-900/20 via-purple-900/20 to-cyan-900/20 dark:from-indigo-900/40 dark:via-purple-900/40 dark:to-cyan-900/40" />
-            <div className="absolute inset-0 backdrop-blur-3xl" />
-            <div className="absolute inset-0 bg-slate-900/90 dark:bg-slate-900/95" />
+            {/* Light theme background */}
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:hidden" />
+            <div className="absolute inset-0 bg-gradient-to-tl from-indigo-100/50 via-purple-100/50 to-cyan-100/50 dark:hidden" />
+            <div className="absolute inset-0 bg-white/80 dark:hidden" />
+            
+            {/* Dark theme background */}
+            <div className="hidden dark:block absolute inset-0 bg-gradient-to-br from-purple-900/40 via-blue-900/40 to-pink-900/40" />
+            <div className="hidden dark:block absolute inset-0 bg-gradient-to-tl from-indigo-900/40 via-purple-900/40 to-cyan-900/40" />
+            <div className="hidden dark:block absolute inset-0 backdrop-blur-3xl" />
+            <div className="hidden dark:block absolute inset-0 bg-slate-900/95" />
           </div>
 
           {children}
