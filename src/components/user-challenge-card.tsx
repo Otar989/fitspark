@@ -137,16 +137,16 @@ export function UserChallengeCard({ userChallenge, onProgressUpdate, onContinue 
           </div>
           <div className="flex items-center gap-1">
             <Target className="w-4 h-4" />
-            <span>{challenge.points} баллов</span>
+            <span>{challenge.points_reward} баллов</span>
           </div>
         </div>
 
         {/* Difficulty and Actions */}
         <div className="flex items-center justify-between mt-auto">
           <Badge 
-            className={`${difficultyColors[challenge.difficulty]} border`}
+            className={`${difficultyColors[challenge.difficulty as keyof typeof difficultyColors]} border`}
           >
-            {difficultyLabels[challenge.difficulty]}
+            {difficultyLabels[challenge.difficulty as keyof typeof difficultyLabels]}
           </Badge>
           
           <div className="flex gap-2">

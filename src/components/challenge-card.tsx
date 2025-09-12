@@ -49,7 +49,7 @@ export function ChallengeCard({
   }
 
   const getUnitInfo = () => {
-    return CHALLENGE_UNITS[challenge.target_unit] || {
+    return CHALLENGE_UNITS[challenge.target_unit as keyof typeof CHALLENGE_UNITS] || {
       label: challenge.target_unit,
       placeholder: `Например: ${challenge.target_value}`,
       icon: '🎯'
@@ -58,7 +58,7 @@ export function ChallengeCard({
 
   const getCategoryInfo = () => {
     if (!challenge.category) return null
-    return CHALLENGE_CATEGORIES[challenge.category.slug]
+    return CHALLENGE_CATEGORIES[challenge.category.slug as keyof typeof CHALLENGE_CATEGORIES]
   }
 
   const handleJoin = async () => {

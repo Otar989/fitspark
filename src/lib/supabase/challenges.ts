@@ -273,41 +273,46 @@ export async function getProofs(userChallengeId: string, limit = 10): Promise<Da
 export async function getChallenge(challengeId: string, userId?: string): Promise<DatabaseChallenge | null> {
   const supabase = createClient()
   
-  let query = supabase
-    .from('challenges')
-    .select(`
-      *,
-      category:categories(
-        id,
-        name,
-        slug,
-        icon,
-        color,
-        description
-      )
-    `)
-    .eq('id', challengeId)
-
+  let query
+  
   // Add user challenge info if userId provided
   if (userId) {
-    query = query.select(`
-      *,
-      category:categories(
-        id,
-        name,
-        slug,
-        icon,
-        color,
-        description
-      ),
-      user_challenges!left(
-        id,
-        status,
-        current_progress,
-        joined_at,
-        completed_at
-      )
-    `)
+    query = supabase
+      .from('challenges')
+      .select(`
+        *,
+        category:categories(
+          id,
+          name,
+          slug,
+          icon,
+          color,
+          description
+        ),
+        user_challenges!left(
+          id,
+          status,
+          current_progress,
+          joined_at,
+          completed_at
+        )
+      `)
+      .eq('id', challengeId)
+  } else {
+    query = supabase
+      .from('challenges')
+      .select(`
+        *,
+        category:categories(
+          id,
+          name,
+          slug,
+          icon,
+          color,
+          description
+        )
+      `)
+      .eq('id', challengeId)
   }
 
   const { data, error } = await query.single()

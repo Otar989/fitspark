@@ -51,7 +51,7 @@ export function SubmitProofDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const availableDays = challenge ? Array.from({ length: challenge.duration_days }, (_, i) => i + 1) : []
-  const unitInfo = challenge ? CHALLENGE_UNITS[challenge.unit as keyof typeof CHALLENGE_UNITS] : null
+  const unitInfo = challenge ? CHALLENGE_UNITS[challenge.target_unit as keyof typeof CHALLENGE_UNITS] : null
 
   // Reset form when dialog opens/closes
   useEffect(() => {
@@ -161,7 +161,7 @@ export function SubmitProofDialog({
           {/* Value Input */}
           <div className="space-y-2">
             <Label htmlFor="value">
-              Значение ({unitInfo?.label || challenge.unit})
+              Значение ({unitInfo?.label || challenge.target_unit})
             </Label>
             <Input
               id="value"
