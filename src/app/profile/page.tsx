@@ -181,7 +181,7 @@ export default function ProfilePage() {
 
   const activeChallenges = userChallenges.filter(uc => !uc.completed_at)
   const completedChallenges = userChallenges.filter(uc => uc.completed_at)
-  const totalPoints = userChallenges.reduce((sum, uc) => sum + (uc.completed_at && uc.challenge ? uc.challenge.points : 0), 0)
+  const totalPoints = userChallenges.reduce((sum, uc) => sum + (uc.completed_at && uc.challenge ? uc.challenge.points_reward : 0), 0)
 
   return (
     <div className="min-h-screen">
