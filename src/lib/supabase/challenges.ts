@@ -53,6 +53,9 @@ export interface DatabaseUserChallenge {
   created_at: string
   updated_at: string
   challenge?: DatabaseChallenge
+  progress?: number
+  completed_steps?: number
+  total_steps?: number
 }
 
 export interface DatabaseProof {

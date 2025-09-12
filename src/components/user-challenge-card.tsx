@@ -31,16 +31,36 @@ const difficultyLabels = {
 
 export function UserChallengeCard({ userChallenge, onProgressUpdate, onContinue }: UserChallengeCardProps) {
   const [isUpdating, setIsUpdating] = useState(false)
-  const { challenge, progress, started_at, completed_at } = userChallenge
+  const { challenge, progress, completed_steps, total_steps, completed_at, joined_at } = userChallenge
 
   if (!challenge) {
     return null
   }
 
-  const isCompleted = completed_at
-  const completedDays = Array.isArray(progress) ? progress.filter((p: any) => p.value !== null).length : 0
-  const progressPercentage = Math.round((completedDays / challenge.duration_days) * 100)
-  const daysSinceStart = Math.floor((Date.now() - new Date(started_at).getTime()) / (1000 * 60 * 60 * 24))
+  // Calculate progress safely
+  const getProgressPercentage = (): number => {
+    // If progress is defined, use it
+    if (typeof progress === 'number') {
+      return Math.round(Math.max(0, Math.min(100, progress)))
+    }
+    
+    // If we have completed_steps and total_steps, calculate from them
+    if (typeof completed_steps === 'number' && typeof total_steps === 'number' && total_steps > 0) {
+      return Math.round((completed_steps / total_steps) * 100)
+    }
+    
+    // Use current_progress field as fallback (should be 0-100)
+    if (typeof userChallenge.current_progress === 'number') {
+      return Math.round(Math.max(0, Math.min(100, userChallenge.current_progress)))
+    }
+    
+    // Default to 0 if nothing is available
+    return 0
+  }
+
+  const isCompleted = !!completed_at
+  const progressPercentage = getProgressPercentage()
+  const daysSinceStart = Math.floor((Date.now() - new Date(joined_at).getTime()) / (1000 * 60 * 60 * 24))
   const daysRemaining = Math.max(0, challenge.duration_days - daysSinceStart)
 
   const updateProgress = async (newProgress: number) => {
@@ -86,7 +106,9 @@ export function UserChallengeCard({ userChallenge, onProgressUpdate, onContinue 
       <GlassCardHeader className="pb-4">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-3">
-            <div className="text-3xl">{challenge.icon}</div>
+            <div className="text-3xl">
+              {challenge.category?.icon || '🎯'}
+            </div>
             <div>
               <GlassCardTitle className="text-lg font-semibold text-white">
                 {challenge.title}
@@ -99,7 +121,7 @@ export function UserChallengeCard({ userChallenge, onProgressUpdate, onContinue 
             </div>
           </div>
           <div className="flex flex-col items-end gap-2">
-            {challenge.premium && (
+            {challenge.is_premium && (
               <Crown className="w-5 h-5 text-yellow-400" />
             )}
             {isCompleted && (
@@ -108,9 +130,9 @@ export function UserChallengeCard({ userChallenge, onProgressUpdate, onContinue 
           </div>
         </div>
         
-        {challenge.short && (
+        {challenge.description && (
           <p className="text-white/80 text-sm leading-relaxed">
-            {challenge.short}
+            {challenge.description}
           </p>
         )}
       </GlassCardHeader>
@@ -126,7 +148,6 @@ export function UserChallengeCard({ userChallenge, onProgressUpdate, onContinue 
             value={progressPercentage} 
             className="h-2 bg-white/10"
           />
-          <div className={`h-2 rounded-full ${getProgressColor()}`} style={{ width: `${progressPercentage}%` }} />
         </div>
 
         {/* Stats */}
