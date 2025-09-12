@@ -117,13 +117,16 @@ export default function ProfilePage() {
     proofUrl?: string
     file?: File
   }) => {
-    if (!user || !selectedUserChallenge) return
+    if (!user || !selectedUserChallenge || !selectedUserChallenge.challenge) return
 
     try {
       await submitProof({
         userId: user.id,
         userChallengeId: selectedUserChallenge.id,
-        ...data
+        proofType: selectedUserChallenge.challenge.proof_required,
+        proofNumber: data.value,
+        proofText: data.proofUrl,
+        file: data.file
       })
       
       toast.success('Челлендж выполнен!')
